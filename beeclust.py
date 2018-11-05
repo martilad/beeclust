@@ -41,6 +41,13 @@ class BeeClust:
     def recalculate_heat(self):
         self.dist_from_heater = self.bfs_from_points(self.map.shape, self.find_points(6))
         self.dist_from_cooler = self.bfs_from_points(self.map.shape, self.find_points(7))
+
+
+        #print(np.around(np.divide(np.full(self.map.shape, 1), self.dist_from_heater, out=np.full(self.map.shape, 0.) , where=self.dist_from_heater!=0), decimals=1))
+        #print(np.divide(np.full(self.map.shape, 1), self.dist_from_heater, out=np.full(self.map.shape, self.T_heater), where=self.dist_from_heater!=0))
+        #print(np.around(np.maximum(np.full(self.map.shape, 0),np.divide(1, self.dist_from_heater, out=np.full_like(1, self.T_heater), where=self.dist_from_heater!=0) * (self.T_heater - self.T_env)), decimals=1))
+        #print(self.T_env + self.k_temp * (max(0, 0) - max((1 / self.dist_from_cooler) * (self.T_env - self.T_cooler), 0)))
+
         print(self.dist_from_heater)
         print(self.dist_from_cooler)
 
@@ -69,14 +76,14 @@ class BeeClust:
                 if dx == 0 and dy == 0:
                     dy += 1 
                     continue
-                if self.is_in(x+dx,y+dy, maxX, maxY): neighborhood.append((x+dx, y+dy))
+                if self.is_in_not_wall(x+dx,y+dy, maxX, maxY): neighborhood.append((x+dx, y+dy))
                 dy += 1
             dx += 1
             dy = -1
         return neighborhood
 
-    def is_in(self, x, y, maxX, maxY):
-        return True if x >= 0 and y >= 0 and x < maxX and y < maxY else False
+    def is_in_not_wall(self, x, y, maxX, maxY):
+        return True if x >= 0 and y >= 0 and x < maxX and y < maxY and self.map[x][y] != 5 else False
 
     # T_local je teplota aktuální pozice včely
     def count_stay_time(self, T_local):
@@ -104,6 +111,7 @@ some_numpy_map = np.zeros((10,10))
 some_numpy_map[0][0] = 6
 some_numpy_map[1][4] = 6
 some_numpy_map[5][0] = 6
+some_numpy_map[6][6] = 5
 some_numpy_map[4][4] = 7
 some_numpy_map[8][8] = 7
 b = BeeClust(some_numpy_map)
