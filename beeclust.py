@@ -39,17 +39,23 @@ class BeeClust:
 
     # b.recalculate_heat() vynutí přepočtení b.heatmap (například po změně mapy b.map bez tvorby nové simulace)
     def recalculate_heat(self):
-        self.dist_from_heater = self.bfs_from_points(self.map.shape, self.find_points(6))
-        self.dist_from_cooler = self.bfs_from_points(self.map.shape, self.find_points(7))
+        self.heatmap =  self.add_points_to_array(
+                            self.add_points_to_array(
+                                self.add_points_to_array(
+                                    self.calculate_heat(
+                                        self.bfs_from_points(self.map.shape, self.find_points(6)), 
+                                        self.bfs_from_points(self.map.shape, self.find_points(7))),
+                                    self.map == 5, 
+                                    np.nan), 
+                                self.map == 6, 
+                                self.T_heater),
+                            self.map==7,
+                            self.T_cooler)
+        print(np.round(self.heatmap, decimals=1))
 
-
-        #print(np.around(np.divide(np.full(self.map.shape, 1), self.dist_from_heater, out=np.full(self.map.shape, 0.) , where=self.dist_from_heater!=0), decimals=1))
-        #print(np.divide(np.full(self.map.shape, 1), self.dist_from_heater, out=np.full(self.map.shape, self.T_heater), where=self.dist_from_heater!=0))
-        #print(np.around(np.maximum(np.full(self.map.shape, 0),np.divide(1, self.dist_from_heater, out=np.full_like(1, self.T_heater), where=self.dist_from_heater!=0) * (self.T_heater - self.T_env)), decimals=1))
-        #print(self.T_env + self.k_temp * (max(0, 0) - max((1 / self.dist_from_cooler) * (self.T_env - self.T_cooler), 0)))
-
-        print(self.dist_from_heater)
-        print(self.dist_from_cooler)
+    def add_points_to_array(self, array, mask, value):
+        array[mask] = value
+        return array
 
     def find_points(self, value):
         return np.array(np.where( self.map == value )).T        
@@ -97,20 +103,34 @@ class BeeClust:
     # vzdálenost ohřívače dist_heater (resp. chladiče) je vzdálenost nejbližšího ohřívače (resp. chladiče) 
     # v počtu kroků 8 směry s uvažováním zdí a ostatních chladičů/ohřívačů jako překážek
     # k_temp je nastavitelný koeficient ovlivňující tepelnou vodivost prostředí
-    def calculate_heat(self):
-        return self.T_env + self.k_temp * (max(heating, 0) - max(cooling, 0))
+    def calculate_heat(self, dist_heater, dist_cooler):
+        return self.T_env + self.k_temp * (np.maximum(
+                                                self.calculate_heating(dist_heater), 
+                                                np.full(self.map.shape, 0)) - np.maximum(
+                                                                                    self.calculate_cooling(dist_cooler), 
+                                                                                    np.full(self.map.shape, 0)))
 
     def calculate_cooling(self, dist_cooler):
-        return (1 / dist_cooler) * (self.T_env - self.T_cooler)
+        return (np.divide(np.full(self.map.shape, 1), 
+                                    dist_cooler, 
+                                    out=np.full(self.map.shape, 0.), 
+                                    where=dist_cooler!=0)) * (self.T_env - self.T_cooler)
 
     def calculate_heating(self, dist_heater):
-        return (1 / dist_heater) * (self.T_heater - self.T_env)
+        return (np.divide(np.full(self.map.shape, 1), 
+                                    dist_heater, 
+                                    out=np.full(self.map.shape, 0.), 
+                                    where=dist_heater!=0)) * (self.T_heater - self.T_env)
 
 
 some_numpy_map = np.zeros((10,10))
 some_numpy_map[0][0] = 6
 some_numpy_map[1][4] = 6
 some_numpy_map[5][0] = 6
+some_numpy_map[1][0] = 5
+some_numpy_map[1][1] = 5
+some_numpy_map[3][0] = 5
+some_numpy_map[3][1] = 5
 some_numpy_map[6][6] = 5
 some_numpy_map[4][4] = 7
 some_numpy_map[8][8] = 7
