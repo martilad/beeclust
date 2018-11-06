@@ -30,6 +30,7 @@ class BeeClust:
         self.map = map
         # b.heatmap obsahuje tepelnou mapu jako numpy matici reálných čísel
         self.heatmap = self.recalculate_heat()
+        print(np.round(self.heatmap, decimals=1))
         # b.bees obsahuje seznam dvojic (x, y) reprezentující pozice včel
         
         self.bees = [(x, y) for x, y in self.find_points((self.map != MapConst.EMPTY) & 
@@ -45,66 +46,80 @@ class BeeClust:
 
     # provede 1 krok simulace algoritmu a vrátí počet včel, které se pohnuly
     def tick(self):
-        lst = [MapConst.UP, MapConst.RIGHT, MapConst.LEFT, MapConst.DOWN]
-        lst.remove(MapConst.DOWN)
-        print(lst)
-        print(np.random.choice(lst))
         move = 0
-        for bee in self.bees:
-            print(self.map[bee])
+        for i, bee in enumerate(self.bees):
             if self.map[bee] == MapConst.UP:
-                if np.random.random() < self.p_changedir:
-                    self.map[bee] = np.random.choice([MapConst.RIGHT, MapConst.LEFT, MapConst.DOWN])
-                    continue
+                move += self.move_to(bee, bee[0]+1, bee[1], MapConst.UP, MapConst.DOWN, i)
                 continue
             if self.map[bee] == MapConst.RIGHT:
-                if np.random.random() < self.p_changedir:
-                    self.map[bee] = np.random.choice([MapConst.UP, MapConst.LEFT, MapConst.DOWN])
-                    continue
+                move += self.move_to(bee, bee[0], bee[1]+1, MapConst.RIGHT, MapConst.LEFT, i)
                 continue
             if self.map[bee] == MapConst.LEFT:
-                if np.random.random() < self.p_changedir:
-                    self.map[bee] = np.random.choice([MapConst.UP, MapConst.RIGHT, MapConst.DOWN])
-                    continue
+                move += self.move_to(bee, bee[0], bee[1]-1, MapConst.LEFT, MapConst.RIGHT, i)
                 continue
             if self.map[bee] == MapConst.DOWN:
-                if np.random.random() < self.p_changedir:
-                     self.map[bee] = np.random.choice([MapConst.UP, MapConst.RIGHT, MapConst.LEFT])
-                     continue
+                move += self.move_to(bee, bee[0]-1, bee[1], MapConst.DOWN, MapConst.UP, i)
                 continue
             if self.map[bee] == MapConst.CHOOSE:
                 self.map[bee] = np.random.choice([MapConst.UP, MapConst.RIGHT, MapConst.LEFT, MapConst.DOWN])
                 continue
             if self.map[bee] < -1:
-                self.map[bee] -= 1
+                self.map[bee] += 1
                 continue
             print("Something wrong")
+        #print(self.map)
         return move
 
-    def move_to(self, x, y):
-        ...
+    def change_dir(self, bee, act_dir):
+        lst = [MapConst.UP, MapConst.RIGHT, MapConst.LEFT, MapConst.DOWN]
+        if np.random.random() < self.p_changedir:
+            lst.remove(act_dir)
+            self.map[bee] = np.random.choice([MapConst.UP, MapConst.RIGHT, MapConst.LEFT])
+            return True
+        else: return False
+
+    def move_to(self, bee, x, y, act_dir, opt_dir, index):
+        if (self.change_dir(bee, act_dir)): return 0
+        if (not self.is_in(x, y, self.map.shape[0], self.map.shape[1])) or self.map[x][y] == MapConst.WALL or\
+                            self.map[x][y] == MapConst.HEATER or self.map[x][y] == MapConst.COOLER:
+            if np.random.random() < self.p_wall:
+                self.map[bee] = -self.time_to_stay(bee)
+                return 0
+            self.map[bee] = opt_dir
+            return 0
+        if self.is_in(x, y, self.map.shape[0], self.map.shape[1]) and self.map[x][y] == MapConst.EMPTY:
+            self.map[bee] = 0
+            self.map[x][y] = act_dir
+            self.bees[index] = (x, y)
+            return 1
+        else:
+            if np.random.random() < self.p_meet:
+                self.map[bee] = -self.time_to_stay(bee)
+            return 0
+
+    def time_to_stay(self, bee):
+        return max(int(self.k_stay / (1 + abs(self.T_ideal - self.heatmap[bee]))), self.min_wait)+1
 
     # všechny včely zapomenou svoji dobu čekání a směr, kterým šly; v příštím kroku vylosují náhodně směr a v dalším kroku se opět dají do pohybu
     def forget(self):
-        ...
+        self.map[((self.map <= -1) & (self.map != MapConst.UP) & 
+            (self.map != MapConst.DOWN) & (self.map != MapConst.RIGHT) & (self.map != MapConst.LEFT))] = -1
 
     # b.recalculate_heat() vynutí přepočtení b.heatmap (například po změně mapy b.map bez tvorby nové simulace)
     def recalculate_heat(self):
-        print()
-        #print(self.find_points())
-        self.heatmap =  self.add_points_to_array(
-                            self.add_points_to_array(
-                                self.add_points_to_array(
-                                    self.calculate_heat(
-                                        self.bfs_from_points(self.map.shape, self.find_points(self.map == MapConst.HEATER)), 
-                                        self.bfs_from_points(self.map.shape, self.find_points(self.map == MapConst.COOLER))),
-                                    self.map == MapConst.WALL, 
-                                    np.nan), 
-                                self.map == MapConst.HEATER, 
-                                self.T_heater),
-                            self.map==MapConst.COOLER,
-                            self.T_cooler)
-        print(np.round(self.heatmap, decimals=1))
+        return self.add_points_to_array(
+                    self.add_points_to_array(
+                        self.add_points_to_array(
+                            self.calculate_heat(
+                                self.bfs_from_points(self.map.shape, self.find_points(self.map == MapConst.HEATER)), 
+                                self.bfs_from_points(self.map.shape, self.find_points(self.map == MapConst.COOLER))),
+                            self.map == MapConst.WALL, 
+                            np.nan), 
+                        self.map == MapConst.HEATER, 
+                        self.T_heater),
+                    self.map==MapConst.COOLER,
+                    self.T_cooler)
+        
 
     def add_points_to_array(self, array, mask, value):
         array[mask] = value
@@ -184,6 +199,9 @@ some_numpy_map[0][0] = 6
 some_numpy_map[1][4] = 6
 some_numpy_map[5][0] = 6
 some_numpy_map[5][5] = 1
+some_numpy_map[1][5] = 1
+some_numpy_map[2][5] = 1
+some_numpy_map[3][5] = 1
 some_numpy_map[5][6] = 1
 some_numpy_map[1][0] = 5
 some_numpy_map[1][1] = 5
@@ -193,4 +211,7 @@ some_numpy_map[6][6] = 5
 some_numpy_map[4][4] = 7
 some_numpy_map[8][8] = 7
 b = BeeClust(some_numpy_map)
-b.tick()
+for i in range(10000):
+    b.tick()
+
+print(b.map)
