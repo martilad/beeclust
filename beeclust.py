@@ -12,25 +12,56 @@ class MapConst:
     COOLER = 7
     CHOOSE = -1
 
+def check_type(value, t, name):
+    if type(value) not in t: raise TypeError("{} is not type {}.".format(name, str(t)))
+
+def check_bound(value, min, max, text):
+    if min != None: 
+        if value < min: raise ValueError(text)
+    if max != None: 
+        if value > max: raise ValueError(text)
+
 class BeeClust:
 
     def __init__(self, map, p_changedir=0.2, p_wall=0.8, p_meet=0.8, k_temp=0.9,
                  k_stay=50, T_ideal=35, T_heater=40, T_cooler=5, T_env=22, min_wait=2):
-        self.p_changedir = p_changedir
-        self.p_wall = p_wall
-        self.p_meet = p_meet
-        self.k_temp = k_temp
-        self.k_stay = k_stay
-        self.T_ideal = T_ideal
-        self.T_heater = T_heater
-        self.T_cooler = T_cooler
-        self.T_env = T_env
-        self.min_wait = min_wait
+
+        check_type(map, [np.ndarray], "map")
+        if len(map.shape) != 2: raise ValueError("map dim error, not 2D array")
+        check_type(p_changedir, [float, int], "p_changedir")
+        check_bound(p_changedir, 0, 1, "p_changedir must be positive value between 0-1 -> represent probability.")
+        check_type(p_wall, [float, int], "p_wall")
+        check_bound(p_wall, 0, 1, "p_wall must be positive value between 0-1 -> represent probability.")
+        check_type(p_meet, [float, int], "p_meet")
+        check_bound(p_meet, 0, 1, "p_meet must be positive value between 0-1 -> represent probability.")
+        check_type(k_temp, [float, int], "k_temp")
+        check_bound(k_temp, 0, None, "k_temp must be positive.")
+        check_type(k_stay, [float, int], "k_stay")
+        check_bound(k_stay, 0, None, "k_stay must be positive.")
+        check_type(T_ideal, [float, int], "T_ideal")
+        check_type(T_heater, [float, int], "T_heater")
+        check_type(T_cooler, [float, int], "T_cooler")
+        check_type(T_env, [float, int], "T_env")
+        check_type(min_wait, [float, int], "min_wait")
+        check_bound(min_wait, 0, None, "min_wait must be positive.")
+        if T_heater < T_env: raise ValueError("T_heater must be greater or equal than T_env.")
+        if T_cooler > T_env: raise ValueError("T_cooler must be lower or equal than T_env.")
+        
+        self.p_changedir = float(p_changedir)
+        self.p_wall = float(p_wall)
+        self.p_meet = float(p_meet)
+        self.k_temp = float(k_temp)
+        self.k_stay = int(k_stay)
+        self.T_ideal = int(T_ideal)
+        self.T_heater = int(T_heater)
+        self.T_cooler = int(T_cooler)
+        self.T_env = int(T_env)
+        self.min_wait = int(min_wait)
         # b.map obsahuje mapu jako numpy celočíselnou matici
         self.map = map
         # b.heatmap obsahuje tepelnou mapu jako numpy matici reálných čísel
-        self.heatmap = self.recalculate_heat()
-        print(np.round(self.heatmap, decimals=1))
+        self.recalculate_heat()
+        #print(np.round(self.heatmap, decimals=1))
         # b.bees obsahuje seznam dvojic (x, y) reprezentující pozice včel
         
         self.bees = [(x, y) for x, y in self.find_points((self.map != MapConst.EMPTY) & 
@@ -43,13 +74,14 @@ class BeeClust:
         self.swarms = []
         # b.score vypočítá průměrnou teplotu včel
         self.score = 0.
+        self.count_score()
 
     # provede 1 krok simulace algoritmu a vrátí počet včel, které se pohnuly
     def tick(self):
         move = 0
         for i, bee in enumerate(self.bees):
             if self.map[bee] == MapConst.UP:
-                move += self.move_to(bee, bee[0]+1, bee[1], MapConst.UP, MapConst.DOWN, i)
+                move += self.move_to(bee, bee[0]-1, bee[1], MapConst.UP, MapConst.DOWN, i)
                 continue
             if self.map[bee] == MapConst.RIGHT:
                 move += self.move_to(bee, bee[0], bee[1]+1, MapConst.RIGHT, MapConst.LEFT, i)
@@ -58,7 +90,7 @@ class BeeClust:
                 move += self.move_to(bee, bee[0], bee[1]-1, MapConst.LEFT, MapConst.RIGHT, i)
                 continue
             if self.map[bee] == MapConst.DOWN:
-                move += self.move_to(bee, bee[0]-1, bee[1], MapConst.DOWN, MapConst.UP, i)
+                move += self.move_to(bee, bee[0]+1, bee[1], MapConst.DOWN, MapConst.UP, i)
                 continue
             if self.map[bee] == MapConst.CHOOSE:
                 self.map[bee] = np.random.choice([MapConst.UP, MapConst.RIGHT, MapConst.LEFT, MapConst.DOWN])
@@ -67,8 +99,16 @@ class BeeClust:
                 self.map[bee] += 1
                 continue
             print("Something wrong")
-        #print(self.map)
+        self.count_score()
         return move
+
+    def count_score(self):
+        self.score = 0.
+        cnt = 0
+        for bee in self.bees:
+            self.score += self.heatmap[bee]
+            cnt += 1
+        self.score = self.score / cnt if cnt > 0 else 0
 
     def change_dir(self, bee, act_dir):
         lst = [MapConst.UP, MapConst.RIGHT, MapConst.LEFT, MapConst.DOWN]
@@ -107,19 +147,19 @@ class BeeClust:
 
     # b.recalculate_heat() vynutí přepočtení b.heatmap (například po změně mapy b.map bez tvorby nové simulace)
     def recalculate_heat(self):
-        return self.add_points_to_array(
-                    self.add_points_to_array(
-                        self.add_points_to_array(
-                            self.calculate_heat(
-                                self.bfs_from_points(self.map.shape, self.find_points(self.map == MapConst.HEATER)), 
-                                self.bfs_from_points(self.map.shape, self.find_points(self.map == MapConst.COOLER))),
-                            self.map == MapConst.WALL, 
-                            np.nan), 
-                        self.map == MapConst.HEATER, 
-                        self.T_heater),
-                    self.map==MapConst.COOLER,
-                    self.T_cooler)
-        
+        self.heatmap = self.add_points_to_array(
+                                    self.add_points_to_array(
+                                        self.add_points_to_array(
+                                            self.calculate_heat(
+                                                self.bfs_from_points(self.map.shape, self.find_points(self.map == MapConst.HEATER)), 
+                                                self.bfs_from_points(self.map.shape, self.find_points(self.map == MapConst.COOLER))),
+                                            self.map == MapConst.WALL, 
+                                            np.nan), 
+                                        self.map == MapConst.HEATER, 
+                                        self.T_heater),
+                                    self.map==MapConst.COOLER,
+                                    self.T_cooler)
+                        
 
     def add_points_to_array(self, array, mask, value):
         array[mask] = value
@@ -194,24 +234,27 @@ class BeeClust:
                                     where=dist_heater!=0)) * (self.T_heater - self.T_env)
 
 
-some_numpy_map = np.zeros((10,10))
-some_numpy_map[0][0] = 6
-some_numpy_map[1][4] = 6
-some_numpy_map[5][0] = 6
-some_numpy_map[5][5] = 1
-some_numpy_map[1][5] = 1
-some_numpy_map[2][5] = 1
-some_numpy_map[3][5] = 1
-some_numpy_map[5][6] = 1
-some_numpy_map[1][0] = 5
-some_numpy_map[1][1] = 5
-some_numpy_map[3][0] = 5
-some_numpy_map[3][1] = 5
-some_numpy_map[6][6] = 5
-some_numpy_map[4][4] = 7
-some_numpy_map[8][8] = 7
-b = BeeClust(some_numpy_map)
-for i in range(10000):
-    b.tick()
 
-print(b.map)
+def zeros8(*args, **kwargs):
+    kwargs.setdefault('dtype', np.int8)
+    return np.zeros(*args, **kwargs)
+from collections import OrderedDict
+import pytest
+MAP = zeros8((3, 2))
+KWARGS = OrderedDict(
+    map=MAP,
+    p_changedir=0.2,
+    p_wall=0.8,
+    p_meet=0.8,
+    k_temp=0.9,
+    k_stay=50,
+    T_ideal=35,
+    T_heater=40,
+    T_cooler=5,
+    T_env=22,
+    min_wait=2,
+)
+
+def sbt(bees):
+    """Sanitize bees types"""
+    return [tuple(b) for b in bees]
