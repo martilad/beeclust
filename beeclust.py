@@ -1,17 +1,16 @@
 import numpy as np
+from enum import Enum
 
-
-class Bee:
-
-    def __init__(self, position, status):
-        self.position = position
-        self.status = status
-
-    def __repr__(self):
-        return "Pos:{}, stat:{}.".format(self.position, self.status)
-
-    def __str__(self):
-        return "Pos:{}, stat:{}.".format(self.position, self.status)
+class MapConst:
+    EMPTY = 0
+    UP = 1
+    RIGHT = 2
+    DOWN = 3
+    LEFT = 4
+    WALL = 5
+    HEATER = 6
+    COOLER = 7
+    CHOOSE = -1
 
 class BeeClust:
 
@@ -33,11 +32,10 @@ class BeeClust:
         self.heatmap = self.recalculate_heat()
         # b.bees obsahuje seznam dvojic (x, y) reprezentující pozice včel
         
-        self.bee = {x:Bee(x, self.map[x]) for x in 
-                    [(x, y) for x, y in self.find_points((self.map != 0) & (self.map != 5) & (self.map != 6) & (self.map != 7))]}
-        self.bees = list(self.bee.keys())
-        print(self.bees)
-        print(self.bee)
+        self.bees = [(x, y) for x, y in self.find_points((self.map != MapConst.EMPTY) & 
+                                                            (self.map != MapConst.WALL) & 
+                                                            (self.map != MapConst.HEATER) & 
+                                                            (self.map != MapConst.COOLER))]
         # b.swarms obsahuje seznam seznamů dvojic (x, y) reprezentující pozice se sousedícími včelami (4 směry); 
         # například [[(0,0), (0,1), (0,2), (1,0)], [(2,3)], [(3,5), (4,5)]] pro mapu se sedmi včelami ve třech rojích; 
         # na pořadí v seznamech nezáleží
@@ -47,7 +45,44 @@ class BeeClust:
 
     # provede 1 krok simulace algoritmu a vrátí počet včel, které se pohnuly
     def tick(self):
-        return 0
+        lst = [MapConst.UP, MapConst.RIGHT, MapConst.LEFT, MapConst.DOWN]
+        lst.remove(MapConst.DOWN)
+        print(lst)
+        print(np.random.choice(lst))
+        move = 0
+        for bee in self.bees:
+            print(self.map[bee])
+            if self.map[bee] == MapConst.UP:
+                if np.random.random() < self.p_changedir:
+                    self.map[bee] = np.random.choice([MapConst.RIGHT, MapConst.LEFT, MapConst.DOWN])
+                    continue
+                continue
+            if self.map[bee] == MapConst.RIGHT:
+                if np.random.random() < self.p_changedir:
+                    self.map[bee] = np.random.choice([MapConst.UP, MapConst.LEFT, MapConst.DOWN])
+                    continue
+                continue
+            if self.map[bee] == MapConst.LEFT:
+                if np.random.random() < self.p_changedir:
+                    self.map[bee] = np.random.choice([MapConst.UP, MapConst.RIGHT, MapConst.DOWN])
+                    continue
+                continue
+            if self.map[bee] == MapConst.DOWN:
+                if np.random.random() < self.p_changedir:
+                     self.map[bee] = np.random.choice([MapConst.UP, MapConst.RIGHT, MapConst.LEFT])
+                     continue
+                continue
+            if self.map[bee] == MapConst.CHOOSE:
+                self.map[bee] = np.random.choice([MapConst.UP, MapConst.RIGHT, MapConst.LEFT, MapConst.DOWN])
+                continue
+            if self.map[bee] < -1:
+                self.map[bee] -= 1
+                continue
+            print("Something wrong")
+        return move
+
+    def move_to(self, x, y):
+        ...
 
     # všechny včely zapomenou svoji dobu čekání a směr, kterým šly; v příštím kroku vylosují náhodně směr a v dalším kroku se opět dají do pohybu
     def forget(self):
@@ -61,13 +96,13 @@ class BeeClust:
                             self.add_points_to_array(
                                 self.add_points_to_array(
                                     self.calculate_heat(
-                                        self.bfs_from_points(self.map.shape, self.find_points(self.map == 6)), 
-                                        self.bfs_from_points(self.map.shape, self.find_points(self.map == 7))),
-                                    self.map == 5, 
+                                        self.bfs_from_points(self.map.shape, self.find_points(self.map == MapConst.HEATER)), 
+                                        self.bfs_from_points(self.map.shape, self.find_points(self.map == MapConst.COOLER))),
+                                    self.map == MapConst.WALL, 
                                     np.nan), 
-                                self.map == 6, 
+                                self.map == MapConst.HEATER, 
                                 self.T_heater),
-                            self.map==7,
+                            self.map==MapConst.COOLER,
                             self.T_cooler)
         print(np.round(self.heatmap, decimals=1))
 
@@ -107,7 +142,10 @@ class BeeClust:
         return neighborhood
 
     def is_in_not_wall(self, x, y, maxX, maxY):
-        return True if x >= 0 and y >= 0 and x < maxX and y < maxY and self.map[x][y] != 5 else False
+        return self.is_in(x, y, maxX, maxY) and self.map[x][y] != MapConst.WALL
+
+    def is_in(self, x, y, maxX, maxY):
+        return x >= 0 and y >= 0 and x < maxX and y < maxY
 
     # T_local je teplota aktuální pozice včely
     def count_stay_time(self, T_local):
@@ -155,3 +193,4 @@ some_numpy_map[6][6] = 5
 some_numpy_map[4][4] = 7
 some_numpy_map[8][8] = 7
 b = BeeClust(some_numpy_map)
+b.tick()
