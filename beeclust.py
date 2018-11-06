@@ -1,6 +1,18 @@
 import numpy as np
 
 
+class Bee:
+
+    def __init__(self, position, status):
+        self.position = position
+        self.status = status
+
+    def __repr__(self):
+        return "Pos:{}, stat:{}.".format(self.position, self.status)
+
+    def __str__(self):
+        return "Pos:{}, stat:{}.".format(self.position, self.status)
+
 class BeeClust:
 
     def __init__(self, map, p_changedir=0.2, p_wall=0.8, p_meet=0.8, k_temp=0.9,
@@ -18,10 +30,14 @@ class BeeClust:
         # b.map obsahuje mapu jako numpy celočíselnou matici
         self.map = map
         # b.heatmap obsahuje tepelnou mapu jako numpy matici reálných čísel
-        self.heatmap = np.full(self.map.shape, 0)
-        self.recalculate_heat()
+        self.heatmap = self.recalculate_heat()
         # b.bees obsahuje seznam dvojic (x, y) reprezentující pozice včel
-        self.bees = []
+        
+        self.bee = {x:Bee(x, self.map[x]) for x in 
+                    [(x, y) for x, y in self.find_points((self.map != 0) & (self.map != 5) & (self.map != 6) & (self.map != 7))]}
+        self.bees = list(self.bee.keys())
+        print(self.bees)
+        print(self.bee)
         # b.swarms obsahuje seznam seznamů dvojic (x, y) reprezentující pozice se sousedícími včelami (4 směry); 
         # například [[(0,0), (0,1), (0,2), (1,0)], [(2,3)], [(3,5), (4,5)]] pro mapu se sedmi včelami ve třech rojích; 
         # na pořadí v seznamech nezáleží
@@ -39,12 +55,14 @@ class BeeClust:
 
     # b.recalculate_heat() vynutí přepočtení b.heatmap (například po změně mapy b.map bez tvorby nové simulace)
     def recalculate_heat(self):
+        print()
+        #print(self.find_points())
         self.heatmap =  self.add_points_to_array(
                             self.add_points_to_array(
                                 self.add_points_to_array(
                                     self.calculate_heat(
-                                        self.bfs_from_points(self.map.shape, self.find_points(6)), 
-                                        self.bfs_from_points(self.map.shape, self.find_points(7))),
+                                        self.bfs_from_points(self.map.shape, self.find_points(self.map == 6)), 
+                                        self.bfs_from_points(self.map.shape, self.find_points(self.map == 7))),
                                     self.map == 5, 
                                     np.nan), 
                                 self.map == 6, 
@@ -57,8 +75,8 @@ class BeeClust:
         array[mask] = value
         return array
 
-    def find_points(self, value):
-        return np.array(np.where( self.map == value )).T        
+    def find_points(self, mask):
+        return np.array(np.where(mask)).T        
 
     def bfs_from_points(self, shape, points):
         dist_from_points = np.full(shape, -1)
@@ -127,6 +145,8 @@ some_numpy_map = np.zeros((10,10))
 some_numpy_map[0][0] = 6
 some_numpy_map[1][4] = 6
 some_numpy_map[5][0] = 6
+some_numpy_map[5][5] = 1
+some_numpy_map[5][6] = 1
 some_numpy_map[1][0] = 5
 some_numpy_map[1][1] = 5
 some_numpy_map[3][0] = 5
