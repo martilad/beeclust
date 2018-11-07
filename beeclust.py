@@ -58,16 +58,16 @@ class BeeClust:
         if T_cooler > T_env:
             raise ValueError("T_cooler must be lower or equal than T_env.")
 
-        self.p_changedir = float(p_changedir)
-        self.p_wall = float(p_wall)
-        self.p_meet = float(p_meet)
-        self.k_temp = float(k_temp)
-        self.k_stay = int(k_stay)
-        self.T_ideal = int(T_ideal)
-        self.T_heater = int(T_heater)
-        self.T_cooler = int(T_cooler)
-        self.T_env = int(T_env)
-        self.min_wait = int(min_wait)
+        self.p_changedir = p_changedir
+        self.p_wall = p_wall
+        self.p_meet = p_meet
+        self.k_temp = k_temp
+        self.k_stay = k_stay
+        self.T_ideal = T_ideal
+        self.T_heater = T_heater
+        self.T_cooler = T_cooler
+        self.T_env = T_env
+        self.min_wait = min_wait
         self.map = map
         self.heatmap = None
         self.recalculate_heat()
