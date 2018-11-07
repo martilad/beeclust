@@ -57,29 +57,60 @@ class BeeClust:
         self.T_cooler = int(T_cooler)
         self.T_env = int(T_env)
         self.min_wait = int(min_wait)
-        # b.map obsahuje mapu jako numpy celočíselnou matici
         self.map = map
-        # b.heatmap obsahuje tepelnou mapu jako numpy matici reálných čísel
         self.recalculate_heat()
-        #print(np.round(self.heatmap, decimals=1))
-        # b.bees obsahuje seznam dvojic (x, y) reprezentující pozice včel
-        
-        self.bees = [(x, y) for x, y in self.find_points((self.map != MapConst.EMPTY) & 
+
+    @property
+    def bees(self):
+        return [(x, y) for x, y in self.find_points((self.map != MapConst.EMPTY) & 
                                                             (self.map != MapConst.WALL) & 
                                                             (self.map != MapConst.HEATER) & 
                                                             (self.map != MapConst.COOLER))]
-        # b.swarms obsahuje seznam seznamů dvojic (x, y) reprezentující pozice se sousedícími včelami (4 směry); 
-        # například [[(0,0), (0,1), (0,2), (1,0)], [(2,3)], [(3,5), (4,5)]] pro mapu se sedmi včelami ve třech rojích; 
-        # na pořadí v seznamech nezáleží
-        self.swarms = []
-        # b.score vypočítá průměrnou teplotu včel
-        self.score = 0.
-        self.count_score()
 
-    # provede 1 krok simulace algoritmu a vrátí počet včel, které se pohnuly
+    @property
+    def score(self):
+        score = 0.
+        cnt = 0
+        for bee in self.bees:
+            score += self.heatmap[bee]
+            cnt += 1
+        return score / cnt if cnt > 0 else 0
+
+    @property
+    def swarms(self):
+        sId = 0
+        swarms = []
+        sDic = {}
+        sSet = set(self.bees)
+        while len(sSet) > 0:
+            swarms.append(self.steping_on_bees(sSet))
+        return swarms
+
+    def steping_on_bees(self, sSet):
+        swarm = []
+        s = sSet.pop()
+        queue = [s]
+        swarm.append(s)
+        while len(queue) > 0:
+            q = queue.pop(0)
+            for pos in self.neighbors(q[0], q[1]):
+                if self.is_in(pos[0], pos[1], self.map.shape[0], self.map.shape[1]) and pos in sSet:
+                    queue.append(pos)
+                    swarm.append(pos)
+                    sSet.remove(pos)
+        return swarm
+
+    def neighbors(self, x, y):
+        return [(x+1, y), (x-1, y), (x, y+1), (x, y-1)]
+
     def tick(self):
         move = 0
         for i, bee in enumerate(self.bees):
+            if (self.map[bee] == MapConst.UP or 
+                    self.map[bee] == MapConst.RIGHT or 
+                    self.map[bee] == MapConst.LEFT or 
+                    self.map[bee] == MapConst.DOWN):
+                self.change_dir(bee, self.map[bee])
             if self.map[bee] == MapConst.UP:
                 move += self.move_to(bee, bee[0]-1, bee[1], MapConst.UP, MapConst.DOWN, i)
                 continue
@@ -99,27 +130,15 @@ class BeeClust:
                 self.map[bee] += 1
                 continue
             print("Something wrong")
-        self.count_score()
         return move
-
-    def count_score(self):
-        self.score = 0.
-        cnt = 0
-        for bee in self.bees:
-            self.score += self.heatmap[bee]
-            cnt += 1
-        self.score = self.score / cnt if cnt > 0 else 0
-
+        
     def change_dir(self, bee, act_dir):
         lst = [MapConst.UP, MapConst.RIGHT, MapConst.LEFT, MapConst.DOWN]
         if np.random.random() < self.p_changedir:
             lst.remove(act_dir)
-            self.map[bee] = np.random.choice([MapConst.UP, MapConst.RIGHT, MapConst.LEFT])
-            return True
-        else: return False
+            self.map[bee] = np.random.choice(lst)
 
     def move_to(self, bee, x, y, act_dir, opt_dir, index):
-        if (self.change_dir(bee, act_dir)): return 0
         if (not self.is_in(x, y, self.map.shape[0], self.map.shape[1])) or self.map[x][y] == MapConst.WALL or\
                             self.map[x][y] == MapConst.HEATER or self.map[x][y] == MapConst.COOLER:
             if np.random.random() < self.p_wall:
@@ -138,14 +157,14 @@ class BeeClust:
             return 0
 
     def time_to_stay(self, bee):
-        return max(int(self.k_stay / (1 + abs(self.T_ideal - self.heatmap[bee]))), self.min_wait)+1
+        return max(int(self.k_stay / (1 + abs(self.T_ideal - self.heatmap[bee]))), self.min_wait)
 
-    # všechny včely zapomenou svoji dobu čekání a směr, kterým šly; v příštím kroku vylosují náhodně směr a v dalším kroku se opět dají do pohybu
     def forget(self):
-        self.map[((self.map <= -1) & (self.map != MapConst.UP) & 
-            (self.map != MapConst.DOWN) & (self.map != MapConst.RIGHT) & (self.map != MapConst.LEFT))] = -1
+        print(self.map)
+        self.map[((self.map <= -1) | (self.map == MapConst.UP) | 
+            (self.map == MapConst.DOWN) | (self.map == MapConst.RIGHT) | (self.map == MapConst.LEFT))] = -1
+        print(self.map)
 
-    # b.recalculate_heat() vynutí přepočtení b.heatmap (například po změně mapy b.map bez tvorby nové simulace)
     def recalculate_heat(self):
         self.heatmap = self.add_points_to_array(
                                     self.add_points_to_array(
@@ -202,18 +221,9 @@ class BeeClust:
     def is_in(self, x, y, maxX, maxY):
         return x >= 0 and y >= 0 and x < maxX and y < maxY
 
-    # T_local je teplota aktuální pozice včely
     def count_stay_time(self, T_local):
         return max(int(self.k_stay / (1 + abs(self.T_ideal - T_local))), self.min_wait)
 
-    # Teplo se po mapě šíří ve všech 8 směrech (narozdíl od pohybu včel) a počítá se v reálných číslech typu float
-    # Na pozici, kde je zeď, teplota není definována (NaN)
-    # Na pozici, kde je ohřívač, je vždy teplota T_heater
-    # Na pozici, kde je chladič, je vždy teplota T_cooler
-    # Na pozicích, kde nic není nebo jsou tam včely, se teplota počítá podle vzorce:
-    # vzdálenost ohřívače dist_heater (resp. chladiče) je vzdálenost nejbližšího ohřívače (resp. chladiče) 
-    # v počtu kroků 8 směry s uvažováním zdí a ostatních chladičů/ohřívačů jako překážek
-    # k_temp je nastavitelný koeficient ovlivňující tepelnou vodivost prostředí
     def calculate_heat(self, dist_heater, dist_cooler):
         return self.T_env + self.k_temp * (np.maximum(
                                                 self.calculate_heating(dist_heater), 
@@ -232,29 +242,3 @@ class BeeClust:
                                     dist_heater, 
                                     out=np.full(self.map.shape, 0.), 
                                     where=dist_heater!=0)) * (self.T_heater - self.T_env)
-
-
-
-def zeros8(*args, **kwargs):
-    kwargs.setdefault('dtype', np.int8)
-    return np.zeros(*args, **kwargs)
-from collections import OrderedDict
-import pytest
-MAP = zeros8((3, 2))
-KWARGS = OrderedDict(
-    map=MAP,
-    p_changedir=0.2,
-    p_wall=0.8,
-    p_meet=0.8,
-    k_temp=0.9,
-    k_stay=50,
-    T_ideal=35,
-    T_heater=40,
-    T_cooler=5,
-    T_env=22,
-    min_wait=2,
-)
-
-def sbt(bees):
-    """Sanitize bees types"""
-    return [tuple(b) for b in bees]
