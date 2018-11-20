@@ -1,5 +1,6 @@
 import numpy as np
-
+from enum import Enum, IntEnum
+import random
 
 # Constants for map
 class MapConst:
@@ -12,6 +13,29 @@ class MapConst:
     HEATER = 6
     COOLER = 7
     CHOOSE = -1
+
+class Movement(Enum):
+    """
+    Kinds of movement, only used by our algorithms, so no underlying numbers
+    needed.
+    """
+    WALL_HIT = 0
+    BEE_MEET = 1
+    MOVE = 2
+    WAIT = 3
+
+
+DIR_OFFSETS_4 = {
+    MapConst.UP: (-1, 0),
+    MapConst.RIGHT: (0, 1),
+    MapConst.DOWN: (1, 0),
+    MapConst.LEFT: (0, -1)
+}
+
+DIR_OFFSETS_8 = (
+    (1, 0), (-1, 0), (0, 1), (0, -1),
+    (1, 1), (-1, 1), (-1, -1), (1, -1),
+)
 
 
 # Check type of property, and check if it is in list of types.
@@ -75,10 +99,12 @@ class BeeClust:
     # Return list of bees in map.
     @property
     def bees(self):
-        return [(x, y) for x, y in self.find_points((self.map != MapConst.EMPTY) &
-                                                    (self.map != MapConst.WALL) &
-                                                    (self.map != MapConst.HEATER) &
-                                                    (self.map != MapConst.COOLER))]
+        """
+        Enlist coordinates where bees are located
+        """
+        indices = np.where((self.map < 0)
+                              | ((1 <= self.map) & (self.map <= 4)))
+        return list(zip(indices[0], indices[1]))
 
     # Compute bees score.
     @property
@@ -122,33 +148,61 @@ class BeeClust:
 
     # Do one simulation step.
     def tick(self):
-        move = 0
-        for i, bee in enumerate(self.bees):
-            if (self.map[bee] == MapConst.UP or
-                    self.map[bee] == MapConst.RIGHT or
-                    self.map[bee] == MapConst.LEFT or
-                    self.map[bee] == MapConst.DOWN):
-                self.change_dir(bee, self.map[bee])
-            if self.map[bee] == MapConst.UP:
-                move += self.move_to(bee, bee[0] - 1, bee[1], MapConst.UP, MapConst.DOWN, i)
+        """
+        Do single step of BeeClust algorithm.
+
+        Returns number of moved bees.
+        """
+        done = np.full(self.map.shape, False, dtype='bool')
+        moved = 0
+
+        for r, c in np.ndindex(self.map.shape):
+            if done[r, c]:
                 continue
-            if self.map[bee] == MapConst.RIGHT:
-                move += self.move_to(bee, bee[0], bee[1] + 1, MapConst.RIGHT, MapConst.LEFT, i)
-                continue
-            if self.map[bee] == MapConst.LEFT:
-                move += self.move_to(bee, bee[0], bee[1] - 1, MapConst.LEFT, MapConst.RIGHT, i)
-                continue
-            if self.map[bee] == MapConst.DOWN:
-                move += self.move_to(bee, bee[0] + 1, bee[1], MapConst.DOWN, MapConst.UP, i)
-                continue
-            if self.map[bee] == MapConst.CHOOSE:
-                self.map[bee] = np.random.choice([MapConst.UP, MapConst.RIGHT, MapConst.LEFT, MapConst.DOWN])
-                continue
-            if self.map[bee] < -1:
-                self.map[bee] += 1
-                continue
-            print("Something wrong")
-        return move
+            if self.map[r, c] == -1:
+                self.map[r, c] = random.randint(1, 4)
+            elif 1 <= self.map[r, c] <= 4:
+                if random.random() < self.p_changedir:
+                    next_dir = random.randint(1, 3)
+                    if next_dir == self.map[r, c]:
+                        next_dir = 4
+                    self.map[r, c] = next_dir
+
+                offset_r, offset_c = DIR_OFFSETS_4[self.map[r, c]]
+                nr = offset_r + r
+                nc = offset_c + c
+
+                movement = Movement.WALL_HIT
+                if 0 <= nr < self.map.shape[0] and 0 <= nc < self.map.shape[1]:
+                    if 1 <= self.map[nr, nc] <= 4 or self.map[nr, nc] < 0:
+                        movement = Movement.BEE_MEET
+                    elif self.map[nr, nc] == MapConst.EMPTY:
+                        movement = Movement.MOVE
+
+                if movement == Movement.WALL_HIT:
+                    if random.random() < self.p_wall:
+                        movement = Movement.WAIT
+                    else:
+                        self.map[r, c] = (self.map[r, c] + 1) % 4 + 1
+                elif (movement == Movement.BEE_MEET
+                      and random.random() < self.p_meet):
+                    movement = Movement.WAIT
+
+                if movement == Movement.WAIT:
+                    delta = abs(self.heatmap[r, c] - self.T_ideal)
+                    wait_time = int(self.k_stay / (1 + delta))
+                    wait_time = max(self.min_wait, wait_time)
+                    self.map[r, c] = -wait_time
+                elif movement == Movement.MOVE:
+                    moved += 1
+                    self.map[nr, nc] = self.map[r, c]
+                    self.map[r, c] = MapConst.EMPTY
+                    done[nr, nc] = True
+            elif self.map[r, c] < 0:
+                self.map[r, c] += 1
+            done[r, c] = True
+
+        return moved
 
     # Change direction of bee based directions and probability of change direction.
     def change_dir(self, bee, act_dir):
@@ -183,10 +237,8 @@ class BeeClust:
     # All bees will forget their waiting times and the direction they were going through.
     # In the next step they randomly draw the direction and move in again in the next step.
     def forget(self):
-        print(self.map)
         self.map[((self.map <= -1) | (self.map == MapConst.UP) |
                   (self.map == MapConst.DOWN) | (self.map == MapConst.RIGHT) | (self.map == MapConst.LEFT))] = -1
-        print(self.map)
 
     # Forcing b.heatmap to be recalculated (for example, after changing b.map without creating a new simulation)
     def recalculate_heat(self):

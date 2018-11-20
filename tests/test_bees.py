@@ -46,6 +46,7 @@ def test_all_bees_in_bees():
         for y in range(4):
             assert (x, y) in sbt(b.bees)
 
+
 def test_bees_change_after_tick():
     simple_map = zeros8((2, 2))
     simple_map[1, 0] = 1
