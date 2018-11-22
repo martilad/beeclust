@@ -135,5 +135,10 @@ class BeeClust:
         self.heatmap = fast_recalculate_heat(self.map, self.T_env, self.T_cooler, self.T_heater, self.k_temp)
 
         
-
+def zeros8(*args, **kwargs):
+    kwargs.setdefault('dtype', np.int8)
+    return np.zeros(*args, **kwargs)
     
+simple_map = zeros8((3, 3))
+simple_map[:, :] = MapConst.HEATER
+b = BeeClust(simple_map)

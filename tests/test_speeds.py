@@ -15,7 +15,7 @@ def random_map():
 # we can make 20 runs in 5 s, so we give you 10 s
 @pytest.mark.timeout(10)
 def test_heatmap_is_fast():
-    for i in range(1):
+    for i in range(20):
         print(i)
         b = BeeClust(random_map())
         assert b.heatmap.shape
@@ -46,7 +46,7 @@ b_beeclust.heatmap.shape
 @pytest.mark.timeout(10)
 def test_tick_is_fast():
     moved = 0
-    for i in range(1):
+    for i in range(20):
         print(i)
         nmoved = b_beeclust.tick()
         assert nmoved != moved  # well, it could, but low probability
