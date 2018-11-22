@@ -114,7 +114,7 @@ class BeeClust:
     # Return swarms of bees in map.
     @property
     def swarms(self):
-        return fast_swarms(self.map, self.bees)
+        return fast_swarms(self.map)
 
     # Do one simulation step.
     def tick(self):

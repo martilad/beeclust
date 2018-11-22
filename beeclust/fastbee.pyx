@@ -3,6 +3,9 @@ import numpy as np
 cimport numpy as np
 cimport cython
 from libc.stdlib cimport rand, RAND_MAX
+from collections import deque
+import time
+from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 
 cdef int CHOOSE = -1
 cdef int EMPTY = 0
@@ -106,43 +109,119 @@ def fast_tick(map, heatmap, p_changedir, p_wall, p_meet, T_ideal, k_stay, min_wa
             done[r, c] = 1
     return moved, _map
 
+cdef struct cord:
+    int x
+    int y
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def fast_swarms(map):
 
-def fast_swarms(map, bees):
-    swarms = []
-    s_set = set(bees)
-    while len(s_set) > 0:
-        # Call for each swarm
-        swarms.append(stepping_on_bees(map, s_set))
-    return swarms
+   
 
-# Find all bees in one swarm.
-def stepping_on_bees(map, sSet):
-    swarm = []
-    s = sSet.pop()
-    queue = [s]
-    swarm.append(s)
-    while len(queue) > 0:
-        q = queue.pop(0)
-        for pos in neighbors(q[0], q[1]):
-            if is_in(pos[0], pos[1], map.shape[0], map.shape[1]) and pos in sSet:
-                queue.append(pos)
-                swarm.append(pos)
-                sSet.remove(pos)
-    return swarm
+    cdef np.ndarray[np.int64_t, ndim=2] _map = map
+    cdef int a, b, x, y
+    a = _map.shape[0]
+    b = _map.shape[1]
 
-# Neighbors in map on one step.
-def neighbors(x, y):
-    return [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+    cdef int swarms_max_size = 100
+    cdef int swarms_pos = 0
+    cdef int swarm_max_size
+    cdef int swarm_pos
+    cdef int swarm_queue_pos
+    cdef cord * swrm
+
+    cdef np.ndarray[np.uint8_t, ndim=2] done = np.full((a, b), 0, dtype=np.uint8)
+    cdef cord ** swrms = <cord **>PyMem_Malloc(swarms_max_size*sizeof(cord*))
+    if swrms == NULL:
+        # nedostatek paměti
+        raise MemoryError()
+
+    cdef int i, j
+
+    for i in range(a):
+        for j in range(b):
+            if done[i, j] == 1 or not _is_bee(_map[i, j]):
+                continue
+
+            swarm_max_size = 10
+            swarm_pos = 1
+            swarm_queue_pos = 1
+
+            swrm = <cord *>PyMem_Malloc(swarm_max_size*sizeof(cord))
+            swrm[swarm_pos] = cord(i, j)
+            swarm_pos += 1
+            done[i, j] = 1
+            while swarm_queue_pos != swarm_pos:
+                x = swrm[swarm_queue_pos].x
+                y = swrm[swarm_queue_pos].y
+                swarm_queue_pos += 1
+                # TODO: functions after speed up
+                if is_in(x+1, y, a, b) and _is_bee(_map[x+1, y] and done[x+1, y] != 1):
+                    swrm[swarm_pos] = cord(x+1, y)
+                    swarm_pos += 1
+                    if swarm_pos == swarm_max_size:
+                        swarm_max_size *= 2
+                        swrm = <cord *>PyMem_Realloc(swrm, swarm_max_size*sizeof(cord))
+
+                    done[x+1, y] = 1
+                if is_in(x-1, y, a, b) and _is_bee(_map[x-1, y] and done[x-1, y] != 1):
+                    swrm[swarm_pos] = cord(x-1, y)
+                    swarm_pos += 1
+                    if swarm_pos == swarm_max_size:
+                        swarm_max_size *= 2
+                        swrm = <cord *>PyMem_Realloc(swrm, swarm_max_size*sizeof(cord))
+                    done[x-1, y] = 1
+                if is_in(x, y+1, a, b) and _is_bee(_map[x, y+1] and done[x, y+1] != 1):
+                    swrm[swarm_pos] = cord(x, y+1)
+                    swarm_pos += 1
+                    if swarm_pos == swarm_max_size:
+                        swarm_max_size *= 2
+                        swrm = <cord *>PyMem_Realloc(swrm, swarm_max_size*sizeof(cord))
+                    done[x, y+1] = 1
+                if is_in(x, y-1, a, b) and _is_bee(_map[x, y-1] and done[x, y-1] != 1):
+                    swrm[swarm_pos] = cord(x+1, y)
+                    swarm_pos += 1
+                    if swarm_pos == swarm_max_size:
+                        swarm_max_size *= 2
+                        swrm = <cord *>PyMem_Realloc(swrm, swarm_max_size*sizeof(cord))
+                    done[x, y-1] = 1
+
+            swrm[0] = cord(swarm_pos, swarm_pos)
+            swrms[swarms_pos] = swrm
+            swarms_pos += 1
+            if swarms_pos == swarms_max_size:
+                swarms_max_size *= 2
+                swrms = <cord **>PyMem_Realloc(swrms, swarms_max_size*sizeof(cord*))
+           
+    # SLOW!!
+    start = time.time()
+    # a musíme ho před vrácením předělat na list
+    cdef list lpath = swarms_pos*[0]
+    cdef list swarm 
+    for i in range(swarms_pos):
+        swarm = (swrms[i][0].x-1)*[0]
+        for j in range(1, swrms[i][0].x):
+            swarm[j-1] = (swrms[i][j].x, swrms[i][j].y)
+        PyMem_Free(swrms[i])
+        lpath[i] = swarm
+
+    PyMem_Free(swrms)
+    print("time -", time.time() - start)
+    return lpath
+
+cdef int _is_bee(int value):
+    return value < 0 or 1 <= value <= 4
+
 
 @cython.boundscheck(False)
 @cython.cdivision(True)
-def fast_recalculate_heat(map, T_env, T_cooler, T_heater, k_temp):
-    cdef np.ndarray[np.int64_t, ndim=2] _map = map
-    cdef double _T_env = T_env
-    cdef double _T_cooler = T_cooler
-    cdef double _T_heater = T_heater
-    cdef double _k_temp = k_temp
+def fast_recalculate_heat(np.int64_t[:, :] _map, double _T_env, double _T_cooler, double _T_heater, double _k_temp):
+    #cdef np.ndarray[np.int64_t, ndim=2] _map = map
+    #cdef double _T_env = T_env
+    #cdef double _T_cooler = T_cooler
+    #cdef double _T_heater = T_heater
+    #cdef double _k_temp = k_temp
     cdef int a, b, i, j
     a = _map.shape[0]
     b = _map.shape[1]

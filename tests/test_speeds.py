@@ -1,10 +1,10 @@
 import numpy
 import pytest
-
+import time
 from beeclust import BeeClust
 
 # if you PC is not strong enough, you might consider lowering this temporarily
-SIZE = 200
+SIZE = 1024
 
 
 def random_map():
@@ -27,12 +27,12 @@ a_beeclust = BeeClust(random_map())
 a_beeclust.heatmap.shape
 
 
-@pytest.mark.timeout(10)
+@pytest.mark.timeout(40)
 def test_swarms_is_fast():
     swarms = None
-    for i in range(1):
-        print(i)
+    for i in range(20):
         numpy.random.shuffle(a_beeclust.map)
+        start = time.time()
         assert a_beeclust.swarms != swarms
         swarms = a_beeclust.swarms
 
