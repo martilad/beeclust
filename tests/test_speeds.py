@@ -31,6 +31,7 @@ a_beeclust.heatmap.shape
 def test_swarms_is_fast():
     swarms = None
     for i in range(20):
+        print(i)
         numpy.random.shuffle(a_beeclust.map)
         start = time.time()
         assert a_beeclust.swarms != swarms
