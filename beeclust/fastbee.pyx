@@ -9,6 +9,7 @@ from collections import deque
 import time
 from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 
+# Map constants
 cdef int CHOOSE = -1
 cdef int EMPTY = 0
 cdef int UP = 1
@@ -18,6 +19,7 @@ cdef int LEFT = 4
 cdef int WALL = 5
 cdef int HEATER = 6
 cdef int COOLER = 7
+# Move constants
 cdef int WALL_HIT = 8
 cdef int BEE_MEET = 9
 cdef int MOVE = 10
@@ -26,7 +28,7 @@ cdef int WAIT = 11
 @cython.boundscheck(False)
 @cython.cdivision(True)
 def fast_tick(map, heatmap, p_changedir, p_wall, p_meet, T_ideal, k_stay, min_wait):
-
+    """Do one epoch in the map, for each bee do the operation"""
     cdef np.ndarray[np.int64_t, ndim=2] _map = map
     cdef np.ndarray[np.double_t, ndim=2] _heatmap = heatmap
 
@@ -37,7 +39,6 @@ def fast_tick(map, heatmap, p_changedir, p_wall, p_meet, T_ideal, k_stay, min_wa
     cdef np.ndarray[np.uint8_t, ndim=2] done = np.full((a, b), 0, dtype=np.uint8)
 
     cdef int moved = 0
-
     cdef int r, c, next_dir, nr, nc
     cdef float _p_changedir = p_changedir
     cdef float _p_wall = p_wall
@@ -63,7 +64,7 @@ def fast_tick(map, heatmap, p_changedir, p_wall, p_meet, T_ideal, k_stay, min_wa
                     if next_dir == _map[r, c]:
                         next_dir = 4
                     _map[r, c] = next_dir
-
+                # bee can moved in four direction
                 if _map[r,c] == UP:
                     offset_r = -1
                     offset_c = 0
@@ -117,6 +118,7 @@ cdef struct cord:
 
 
 cdef (int, int)packing_tuple(int x, int y):
+    """Fast creation of tuple in Cython"""
     cdef (int, int) xy = (x, y)
     return xy
 
@@ -124,7 +126,7 @@ cdef (int, int)packing_tuple(int x, int y):
 @cython.wraparound(False)
 @cython.cdivision(True)
 def fast_swarms(map):
-
+    """Find swarms of bees on map. Iterate over map and ahen find bee run BFS."""
     cdef np.ndarray[np.int64_t, ndim=2] _map = map
     cdef int a, b, x, y
     a = _map.shape[0]
@@ -153,7 +155,7 @@ def fast_swarms(map):
                 x = points[0, queue_pos]
                 y = points[1, queue_pos]
                 queue_pos = (queue_pos + 1) % (a*b)
-                # TODO: functions after speed up
+                
                 if is_in(x+1, y, a, b) and _is_bee(_map[x+1, y] and done[x+1, y] != 1):
                     points[0, queue_put] = x+1
                     points[1, queue_put] = y
@@ -186,18 +188,17 @@ def fast_swarms(map):
             
     return swarms
 
+
 cdef int _is_bee(int value):
+    """True if the value is bee"""
     return value < 0 or 1 <= value <= 4
 
 
 @cython.boundscheck(False)
 @cython.cdivision(True)
 def fast_recalculate_heat(np.int64_t[:, :] _map, double _T_env, double _T_cooler, double _T_heater, double _k_temp):
-    #cdef np.ndarray[np.int64_t, ndim=2] _map = map
-    #cdef double _T_env = T_env
-    #cdef double _T_cooler = T_cooler
-    #cdef double _T_heater = T_heater
-    #cdef double _k_temp = k_temp
+    """Method for recalculating heatmap, it runs two BFS for creating distances from heaters and coolers.
+        Next for each position calculate temp."""
     cdef int a, b, i, j
     a = _map.shape[0]
     b = _map.shape[1]
@@ -230,6 +231,7 @@ def fast_recalculate_heat(np.int64_t[:, :] _map, double _T_env, double _T_cooler
 
 @cython.boundscheck(False)
 cdef int _find_points(np.int64_t[:, :] map, np.int64_t[:, :] points, int value, int a, int b):
+    """Function for find point with values in map and add it to array. (for example heaters)"""
     cdef int maxSize = a * b
     cdef int size = 1
     cdef int i, j
@@ -248,6 +250,7 @@ cdef int _find_points(np.int64_t[:, :] map, np.int64_t[:, :] points, int value, 
 @cython.boundscheck(False)
 @cython.cdivision(True)
 cdef void _bfs_from_points(np.int64_t[:, :] map, int a, int b, int value, np.int64_t[:, :] points, np.int64_t[:, :] dist_from_points, int size):
+    """BFS from find points, it save distances from points to new map of distances."""
     size = size % (a*b+1)
     cdef int queue_point = 1
     cdef int x, y, dx, dy
@@ -277,6 +280,7 @@ cdef void _bfs_from_points(np.int64_t[:, :] map, int a, int b, int value, np.int
         else:
             break
 
-# True if point is in map.
+
 cdef int is_in(int x, int y, int maxX, int maxY):
+    """True if point is in map."""
     return 0 <= x < maxX and 0 <= y < maxY
