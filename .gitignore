@@ -3,6 +3,8 @@ __venv__/
 *.c
 build
 prof
+*.egg-info
+.idea
 
 # sphinx build folder
 _build

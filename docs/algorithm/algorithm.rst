@@ -1,0 +1,4 @@
+.. _algorithm:
+
+Algorithm description
+=======================
