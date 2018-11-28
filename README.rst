@@ -15,9 +15,11 @@ Build for usage
 **BeeClust** can be use as importable module. To install is need clone and build Cython.
 Script is need run at least on python 3 and more:
 
-- Clone **BeeClust** from `repository <https://github.com/martilad/beeclust>`_.
-- Go into the cloned directory.
-- Use the following command in the directory to build Cython code for your system: ``python setup.py build_ext --inplace``
+1. Clone **BeeClust** from `repository <https://github.com/martilad/beeclust>`_.
+2. Go into the cloned directory.
+3. Run ``python -m pip install -r requirements.txt``
+4. Use the following command in the directory to build Cython code for your system: ``python setup.py build_ext --inplace``
+5. You can import from module beeclust
 
 
 Documentation

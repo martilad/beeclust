@@ -12,7 +12,7 @@ setup(
     version='0.2',
     description='Clusting algorithm based on behavior of bees.',
     long_description=long_description,
-    author='Ladislav Martínek',
+    author='Ladislav Martinek',
     author_email='martilad@fit.cvut.cz',
     keywords='Beeclust, clustering',
     url='https://github.com/martilad/beeclust',
