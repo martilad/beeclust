@@ -156,28 +156,28 @@ def fast_swarms(map):
                 y = points[1, queue_pos]
                 queue_pos = (queue_pos + 1) % (a*b)
                 
-                if is_in(x+1, y, a, b) and _is_bee(_map[x+1, y] == 1 and done[x+1, y] != 1):
+                if is_in(x+1, y, a, b) and _is_bee(_map[x+1, y]) == 1 and done[x+1, y] != 1:
                     points[0, queue_put] = x+1
                     points[1, queue_put] = y
                     queue_put  = (queue_put + 1) % (a*b)
                     swarm.append(packing_tuple(x+1, y))
                     done[x+1, y] = 1
 
-                if is_in(x-1, y, a, b) and _is_bee(_map[x-1, y] == 1 and done[x-1, y] != 1):
+                if is_in(x-1, y, a, b) and _is_bee(_map[x-1, y]) == 1 and done[x-1, y] != 1:
                     points[0, queue_put] = x-1
                     points[1, queue_put] = y
                     queue_put  = (queue_put + 1) % (a*b)
                     swarm.append(packing_tuple(x-1, y))
                     done[x-1, y] = 1
 
-                if is_in(x, y+1, a, b) and _is_bee(_map[x, y+1] == 1 and done[x, y+1] != 1):
+                if is_in(x, y+1, a, b) and _is_bee(_map[x, y+1]) == 1 and done[x, y+1] != 1:
                     points[0, queue_put] = x
                     points[1, queue_put] = y+1
                     queue_put  = (queue_put + 1) % (a*b)
                     swarm.append(packing_tuple(x, y+1))
                     done[x, y+1] = 1
 
-                if is_in(x, y-1, a, b) and _is_bee(_map[x, y-1] == 1 and done[x, y-1] != 1):
+                if is_in(x, y-1, a, b) and _is_bee(_map[x, y-1]) == 1 and done[x, y-1] != 1:
                     points[0, queue_put] = x
                     points[1, queue_put] = y-1
                     queue_put = (queue_put + 1) % (a*b)

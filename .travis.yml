@@ -11,3 +11,5 @@ install:
 
 script:
   - python -m pytest tests -k "not speed"
+  - cd docs
+  - make doctest
