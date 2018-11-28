@@ -5,6 +5,8 @@ build
 prof
 *.egg-info
 .idea
+.eggs*
+dist
 
 # sphinx build folder
 _build

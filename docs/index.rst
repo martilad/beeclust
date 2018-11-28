@@ -11,7 +11,7 @@ Beeclust's documentation!
    :caption: Contents:
 
    algorithm/algorithm
-   usage/usage
+   usage/instalation
    usage/examples
    auto/api
    license
