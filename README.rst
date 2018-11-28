@@ -9,14 +9,15 @@ BeeClust
 It is created as a part of **MI-PYT** course at **CTU in Prague**.
 
 
-Installation
--------------
+Build for usage
+-----------------
 
-**BeeClust** can be installed manually and is need run at least on python 3 and more:
+**BeeClust** can be use as importable module. To install is need clone and build Cython.
+Script is need run at least on python 3 and more:
 
 - Clone **BeeClust** from `repository <https://github.com/martilad/beeclust>`_.
 - Go into the cloned directory.
-- Use the following command in the directory: ``python setup.py install``
+- Use the following command in the directory to build Cython code for your system: ``python setup.py build_ext --inplace``
 
 
 Documentation

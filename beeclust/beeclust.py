@@ -109,7 +109,7 @@ class BeeClust:
     @property
     def score(self):
         """
-        Compute bees score. Score is represent as the average temperature of bees.
+        Compute and return bees score. Score is represent as the average temperature of bees.
         """
         score = 0.
         cnt = 0
@@ -128,7 +128,7 @@ class BeeClust:
 
     def tick(self):
         """
-        Do one simulation step. Bees move or stop.
+        Do one simulation step. Bees move or stop. Return number of bees which moded.
         """
         moved, self.map = fast_tick(self.map, self.heatmap, 
             self.p_changedir, self.p_wall, 
