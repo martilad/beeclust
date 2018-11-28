@@ -1,8 +1,47 @@
 __pycache__/
 __venv__/
 *.c
-*.so
-*.html
 build
-_build
 prof
+*.egg-info
+.idea
+.eggs*
+dist
+
+# sphinx build folder
+_build
+
+# Compiled source #
+###################
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+
+# Packages #
+############
+# it's better to unpack these files and commit the raw source
+# git has its own built in compression methods
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Logs and databases #
+######################
+*.log
+*.sql
+*.sqlite
+
+# OS generated files #
+######################
+.DS_Store?
+ehthumbs.db
+Icon?
+Thumbs.db

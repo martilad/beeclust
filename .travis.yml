@@ -1,0 +1,15 @@
+language: python
+python:
+  - "3.6"
+
+notifications:
+  email: false
+
+install:
+  - pip install -r requirements.txt
+  - python setup.py build_ext -i
+
+script:
+  - python -m pytest tests -k "not speed"
+  - cd docs
+  - make doctest
