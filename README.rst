@@ -13,7 +13,7 @@ Build for usage
 -----------------
 
 **BeeClust** can be use as importable module. To install is need clone and build Cython.
-Script is need run at least on python 3 and more:
+Script is need run at least on python 3.6 and more:
 
 1. Clone **BeeClust** from `repository <https://github.com/martilad/beeclust>`_.
 2. Go into the cloned directory.
