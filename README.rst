@@ -28,10 +28,11 @@ Documentation
 The documentation can build using the following steps:
 
 1. Clone **BeeClust** from `repository <https://github.com/martilad/beeclust>`_.
-2. Go to **docs** directory inside the **BeeClust**.
-3. Run ``python -m pip install -r requirements.txt``
-4. Run ``make html`` and ``make doctest``
-5. You can find all of the .html files in _build/html directory
+2. Run ``python -m pip install -r requirements.txt``
+3. Use the following command in the directory to build Cython code for your system: ``python setup.py build_ext --inplace``
+4. Go to **docs** directory inside the **BeeClust**.
+5. Run ``make html`` and ``make doctest``
+6. You can find all of the .html files in _build/html directory
 
 License
 -------------
