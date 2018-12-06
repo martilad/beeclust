@@ -1,8 +1,8 @@
 import numpy as np
 from enum import Enum, IntEnum
 import random
-from .fastbee import fast_tick, fast_recalculate_heat, fast_swarms
-from .helpers import check_bound, check_type
+from beeclust.fastbee import fast_tick, fast_recalculate_heat, fast_swarms
+from beeclust.helpers import check_bound, check_type
 
 
 class MapConst:

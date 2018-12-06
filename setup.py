@@ -9,7 +9,7 @@ with open('README.rst') as f:
 setup(
     name='beeclust',
     license='MIT',
-    version='0.2',
+    version='0.2.1',
     description='Clusting algorithm based on behavior of bees.',
     long_description=long_description,
     author='Ladislav Martinek',
