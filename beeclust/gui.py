@@ -1,17 +1,14 @@
 from PyQt5 import QtWidgets, QtCore, QtGui, QtSvg, uic
-import functools
-
+from beeclust.beeclustClass import MapConst
 import numpy
-import sys, os
-grass_img_path = os.path.normpath(os.path.join(os.path.dirname(__file__), 'img', 'grass.svg'))
-wall_img_path = os.path.normpath(os.path.join(os.path.dirname(__file__), 'img', 'wall.svg'))
-SVG_GRASS = QtSvg.QSvgRenderer(grass_img_path)
-SVG_WALL = QtSvg.QSvgRenderer(wall_img_path)
+import os
+import sys
 
 
-CELL_SIZE = 32
+CELL_SIZE = 45
 VALUE_ROLE = QtCore.Qt.UserRole
-DATA = {'Grass':0, 'Wall':1}
+PICTURES = {'grass': 0, 'wall': 5, 'heater': 6, 'cooler': 7, 'bee': -1, 'up': 1, 'down': 3, 'right': 2, 'left': 4}
+
 
 def pixels_to_logical(x, y):
     return y // CELL_SIZE, x // CELL_SIZE
@@ -23,19 +20,19 @@ def logical_to_pixels(row, column):
 
 class GridWidget(QtWidgets.QWidget):
 
-    def __init__(self, array):
-        super().__init__()  # musíme zavolat konstruktor předka
+    def __init__(self, array, images):
+        super().__init__()
+        self.images = images
+        # TODO: beeclust map here use
         self.array = array
-        # nastavíme velikost podle velikosti matice, jinak je náš widget příliš malý
         size = logical_to_pixels(*array.shape)
         self.setMinimumSize(*size)
         self.setMaximumSize(*size)
         self.resize(*size)
-        self.selected = -1
-
+        self.selected = None
 
     def paintEvent(self, event):
-        rect = event.rect()  # získáme informace o překreslované oblasti
+        rect = event.rect()
 
         # zjistíme, jakou oblast naší matice to představuje
         # nesmíme se přitom dostat z matice ven
@@ -53,102 +50,172 @@ class GridWidget(QtWidgets.QWidget):
                 # získáme čtvereček, který budeme vybarvovat
                 x, y = logical_to_pixels(row, column)
 
-
                 rect = QtCore.QRectF(x, y, CELL_SIZE, CELL_SIZE)
 
                 # podkladová barva pod poloprůhledné obrázky
                 white = QtGui.QColor(255, 255, 255)
                 painter.fillRect(rect, QtGui.QBrush(white))
 
-                # trávu dáme všude, protože i zdi stojí na trávě
-                SVG_GRASS.render(painter, rect)
+                # grass add everywhere
+                self.images['grass'].render(painter, rect)
 
-                # zdi dáme jen tam, kam patří
-                if self.array[row, column] == DATA["Wall"]:
-                    SVG_WALL.render(painter, rect)
+                # Place right images on possitions
+                if self.array[row, column] == PICTURES["wall"]:
+                    self.images['wall'].render(painter, rect)
+                if self.array[row, column] <= PICTURES["bee"]:
+                    self.images['bee'].render(painter, rect)
+                if self.array[row, column] == PICTURES["up"]:
+                    self.images['up'].render(painter, rect)
+                if self.array[row, column] == PICTURES["down"]:
+                    self.images['down'].render(painter, rect)
+                if self.array[row, column] == PICTURES["right"]:
+                    self.images['right'].render(painter, rect)
+                if self.array[row, column] == PICTURES["left"]:
+                    self.images['left'].render(painter, rect)
+                if self.array[row, column] == PICTURES["heater"]:
+                    self.images['heater'].render(painter, rect)
+                if self.array[row, column] == PICTURES["cooler"]:
+                    self.images['cooler'].render(painter, rect)
 
     def mousePressEvent(self, event):
-
-        if self.selected == -1:
-            return
-        # převedeme klik na souřadnice matice
+        # Convert to matrix from click
         row, column = pixels_to_logical(event.x(), event.y())
 
-        # Pokud jsme v matici, aktualizujeme data
+        # Update data in matrix
         if 0 <= row < self.array.shape[0] and 0 <= column < self.array.shape[1]:
-            self.array[row, column] = self.selected
-
-            # tímto zajistíme překreslení widgetu v místě změny:
-            # (pro Python 3.4 a nižší volejte jen self.update() bez argumentů)
+            if event.button() == QtCore.Qt.LeftButton:
+                if self.selected is None:
+                    return
+                self.array[row, column] = self.selected
+            elif event.button() == QtCore.Qt.RightButton:
+                self.array[row, column] = PICTURES['grass']
+            else:
+                return
+            # rerender the widget
             self.update(*logical_to_pixels(row, column), CELL_SIZE, CELL_SIZE)
 
+    def wheelEvent(self, event):
+        if event.angleDelta().y() < 0:
+            # TODO: zooming
+            print("minus downsize cell size and render")
+        else:
+            print("plus cellsize and render")
 
-def add_item_to_palette(palette, name, img_path):
-    item = QtWidgets.QListWidgetItem(name)  # vytvoříme položku
-    icon = QtGui.QIcon(img_path)  # ikonu
-    item.setIcon(icon)  # přiřadíme ikonu položce
-    palette.addItem(item)  # přidáme položku do palety
-    item.setData(VALUE_ROLE, DATA[name])
 
-def item_activated(palette, grid):
-    """Tato funkce se zavolá, když uživatel zvolí položku"""
 
-    # Položek může obecně být vybráno víc, ale v našem seznamu je to
-    # zakázáno (v Designeru selectionMode=SingleSelection).
-    # Projdeme "všechny vybrané položky", i když víme že bude max. jedna.
-    for item in palette.selectedItems():
-        grid.selected = item.data(VALUE_ROLE)
+class myWindow(QtWidgets.QMainWindow):
+
+    def __init__(self):
+        super().__init__()
+        self.grid = None
+        self.bee_clust = None
+
+    def keyPressEvent(self, e):
+        if e.key() == QtCore.Qt.Key_Space:
+            # TODO: need do tik a render map
+            print("Need do tick")
+
+
+class App:
+
+    def __init__(self):
+        self.app = QtWidgets.QApplication([])
+        self.window = myWindow()
+
+        with open(App.get_gui_path('mainwindow.ui')) as f:
+            uic.loadUi(f, self.window)
+
+        self.images = {}
+        for i in PICTURES:
+            self.images[i] = App.create_as_qt_svg(i + ".svg")
+
+        # get palette from ui
+        self.palette = self.window.findChild(QtWidgets.QListWidget, 'palette')
+
+        for i in PICTURES:
+            self.add_item_to_palette(i, App.get_img_path(i+".svg"))
+
+        # TODO: beeclust map here init
+        self.array = numpy.zeros((15, 20), dtype=numpy.int8)
+        self.array[:, 5] = 1
+
+        # get range from ui from qt
+        self.scroll_area = self.window.findChild(QtWidgets.QScrollArea, 'scrollArea')
+
+        # create and add grid
+        self.grid = GridWidget(self.array, self.images)
+        self.window.grid = self.grid
+        self.scroll_area.setWidget(self.grid)
+
+        self.palette.itemSelectionChanged.connect(lambda: self.item_activated())
+
+        action = self.window.findChild(QtWidgets.QAction, 'actionNew')
+        action.triggered.connect(lambda: self.new_dialog())
+
+    @staticmethod
+    def create_as_qt_svg(file_name):
+        return QtSvg.QSvgRenderer(App.get_img_path(file_name))
+
+    @staticmethod
+    def get_gui_path(file_name):
+        return os.path.normpath(os.path.join(os.path.dirname(__file__), 'gui', file_name))
+
+    @staticmethod
+    def get_img_path(file_name):
+        return os.path.normpath(os.path.join(os.path.dirname(__file__), 'img', file_name))
+
+    def add_item_to_palette(self, name, img_path):
+        # Create item with icon in palette in app
+        item = QtWidgets.QListWidgetItem(name)
+        icon = QtGui.QIcon(img_path)
+        item.setIcon(icon)
+        self.palette.addItem(item)
+        item.setData(VALUE_ROLE, PICTURES[name])
+
+    def item_activated(self):
+        # call when item click
+        for item in self.palette.selectedItems():
+            self.grid.selected = item.data(VALUE_ROLE)
+
+    def new_dialog(self):
+        # create new dialog
+        dialog = QtWidgets.QDialog(self.window)
+
+        # load ui
+        with open(App.get_gui_path('newmaze.ui')) as f:
+            uic.loadUi(f, dialog)
+
+        # show modal dialog
+        result = dialog.exec()
+
+        # result from dialog, check what button
+        if result == QtWidgets.QDialog.Rejected:
+            return
+
+        # load from spin box
+        cols = dialog.findChild(QtWidgets.QSpinBox, 'widthBox').value()
+        rows = dialog.findChild(QtWidgets.QSpinBox, 'heightBox').value()
+
+        # TODO: beeclust new map
+        self.grid.array = numpy.zeros((rows, cols), dtype=numpy.int8)
+
+        # Mapa může být jinak velká, tak musíme změnit velikost Gridu;
+        # (tento kód používáme i jinde, měli bychom si na to udělat funkci!)
+        # TODO: beeclust new map
+        # TODO: recalculate heat
+        size = logical_to_pixels(rows, cols)
+        self.grid.setMinimumSize(*size)
+        self.grid.setMaximumSize(*size)
+        self.grid.resize(*size)
+
+        # update grid
+        self.grid.update()
+
+    def run(self):
+        self.window.show()
+        return self.app.exec()
 
 
 def main():
-    
-    app = QtWidgets.QApplication([])
-
-    window = QtWidgets.QMainWindow()
-
-
-
-
-
-    with open('mainwindow.ui') as f:
-        uic.loadUi(f, window)
-
-
-
-    window.show()
-
-
-
-    # získáme paletu vytvořenou v Qt Designeru
-    palette = window.findChild(QtWidgets.QListWidget, 'palette')
-
-    add_item_to_palette(palette, "Grass", grass_img_path)
-    add_item_to_palette(palette, "Wall", wall_img_path)
-
-    
- 
-
-
-
-    # mapa zatím nadefinovaná rovnou v kódu
-    array = numpy.zeros((15, 20), dtype=numpy.int8)
-    array[:, 5] = 1  # nějaká zeď
-
-    # získáme oblast s posuvníky z Qt Designeru
-    scroll_area = window.findChild(QtWidgets.QScrollArea, 'scrollArea')
-
-    # dáme do ní náš grid
-    grid = GridWidget(array)
-    scroll_area.setWidget(grid)
-
-
-    palette.itemSelectionChanged.connect(lambda: item_activated(palette, grid))
-
-    return app.exec()
-
-
-
-
-
-	
-
+    app = App()
+    app.run()
