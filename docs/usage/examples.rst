@@ -5,11 +5,13 @@ Examples
 
 Here are some examples of behavior of because and instructions how to use it.
 
-
 .. testsetup::
 
+   import os
+   import sys
    import numpy
-   from beeclust.beeclust import BeeClust
+   sys.path.insert(0, os.path.abspath('..'))
+   from beeclust import BeeClust
    referencion = BeeClust(numpy.zeros((5,5), dtype = numpy.int8), p_changedir = 0, p_wall = 0, T_env=10, p_meet = 1, T_ideal = 10)
    referencion.map[2, 3] = 2
    referencion.map[1, 2] = 1

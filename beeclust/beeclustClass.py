@@ -1,8 +1,8 @@
 import numpy as np
 from enum import Enum, IntEnum
 import random
-from .fastbee import fast_tick, fast_recalculate_heat, fast_swarms
-from .helpers import check_bound, check_type
+from beeclust.fastbee import fast_tick, fast_recalculate_heat, fast_swarms
+from beeclust.helpers import check_bound, check_type
 
 
 class MapConst:
@@ -124,12 +124,14 @@ class BeeClust:
         Return swarms of bees in map. This is clums of bees. Is returned as list of lists of tuples. 
         Swarms are clumps of bees in four direction.
         """
+        self.map = self.map.astype(np.int64)
         return fast_swarms(self.map)
 
     def tick(self):
         """
         Do one simulation step. Bees move or stop. Return number of bees which moded.
         """
+        self.map = self.map.astype(np.int64)
         moved, self.map = fast_tick(self.map, self.heatmap, 
             self.p_changedir, self.p_wall, 
             self.p_meet, self.T_ideal, 
@@ -140,6 +142,7 @@ class BeeClust:
         """
         Forcing recalculating of heatmap (for example, after creating new map and place to the old simulation)
         """
+        self.map = self.map.astype(np.int64)
         self.heatmap = fast_recalculate_heat(self.map, self.T_env, self.T_cooler, self.T_heater, self.k_temp)
 
     def forget(self):
@@ -147,6 +150,7 @@ class BeeClust:
         All bees will forget their waiting times and the direction they were going through.
         The next step they randomly select the direction.
         """
+        self.map = self.map.astype(np.int64)
         self.map[((self.map <= -1) | (self.map == MapConst.UP) |
                   (self.map == MapConst.DOWN) | (self.map == MapConst.RIGHT) | (self.map == MapConst.LEFT))] = -1
 
