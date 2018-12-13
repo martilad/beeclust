@@ -21,10 +21,14 @@ Script is need run at least on python 3.6 and more:
 4. Use the following command in the directory to build Cython code for your system: ``python setup.py build_ext --inplace``
 5. You can import from module beeclust
 
+GUI
+------
+You can also use the GUI with visualization.
+
+- After build you can run with: ``python -m beeclust``
 
 Documentation
 --------------
-
 The documentation can build using the following steps:
 
 1. Clone **BeeClust** from `repository <https://github.com/martilad/beeclust>`_.
