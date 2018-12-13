@@ -10,6 +10,7 @@ Beeclust's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   gui
    algorithm/algorithm
    usage/instalation
    usage/examples
