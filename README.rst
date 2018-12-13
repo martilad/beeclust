@@ -37,4 +37,4 @@ The documentation can build using the following steps:
 License
 -------------
 
-This project is licensed under the **MIT License**.
+This project is licensed under the **GNU GPLv3**.
