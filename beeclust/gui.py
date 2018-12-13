@@ -1,5 +1,6 @@
 from PyQt5 import QtWidgets, QtCore, QtGui, QtSvg, uic
 from beeclust.beeclustClass import MapConst
+from beeclust.About import ABOUT
 import numpy
 import os
 import sys
@@ -121,6 +122,7 @@ class App:
     def __init__(self):
         self.app = QtWidgets.QApplication([])
         self.window = myWindow()
+        self.window.setWindowIcon(QtGui.QIcon(App.get_img_path("bee.svg")))
 
         with open(App.get_gui_path('mainwindow.ui')) as f:
             uic.loadUi(f, self.window)
@@ -149,8 +151,17 @@ class App:
 
         self.palette.itemSelectionChanged.connect(lambda: self.item_activated())
 
-        action = self.window.findChild(QtWidgets.QAction, 'actionNew')
-        action.triggered.connect(lambda: self.new_dialog())
+        self.action_bind('actionNew', lambda: self.new_dialog())
+        self.action_bind('actionOpen', lambda: self.open_dialog())
+        self.action_bind('actionSave', lambda: self.save_dialog())
+        self.action_bind('actionAbout', lambda: self.about())
+        self.action_bind('actionTick', lambda: self.tick())
+        self.action_bind('actionHeat', lambda: self.heatMap())
+        self.action_bind('actionParameters', lambda: self.change_dialog())
+
+    def action_bind(self, name, func):
+        action = self.window.findChild(QtWidgets.QAction, name)
+        action.triggered.connect(func)
 
     @staticmethod
     def create_as_qt_svg(file_name):
@@ -176,6 +187,25 @@ class App:
         # call when item click
         for item in self.palette.selectedItems():
             self.grid.selected = item.data(VALUE_ROLE)
+
+    def change_dialog(self):
+        QtWidgets.QMessageBox.critical(self.window, "vole", "nevim")
+        print("change")
+
+    def open_dialog(self):
+        print("open")
+
+    def save_dialog(self):
+        print("close")
+
+    def tick(self):
+        print("tick")
+
+    def about(self):
+        QtWidgets.QMessageBox.about(self.window, "BeeClust", ABOUT)
+
+    def heatMap(self):
+        print("heatMap")
 
     def new_dialog(self):
         # create new dialog
