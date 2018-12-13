@@ -12,16 +12,24 @@ class GridWidget(QtWidgets.QWidget):
 
     def __init__(self, bee_clust, images):
         super().__init__()
+        # start zoom
         self.CELL_SIZE = 40
+        # min zoom when scroll
         self.MIN_SIZE = 20
+        # max zoom whe scroll
         self.MAX_SIZE = 100
+        # scroll step
         self.STEP = 3
         self.VALUE_ROLE = QtCore.Qt.UserRole
-
+        self.heat_map = False
         self.images = images
         self.bee_clust = bee_clust
         self.recalculate_sizes(*self.bee_clust.map.shape)
         self.selected = None
+        # how many colors add between heater and env color (can be set)
+        self.N_COLORS = 9
+        # how many values are between the colors
+        self.COLOR_STEPS = 510
 
     def pixels_to_logical(self, x, y):
         return y // self.CELL_SIZE, x // self.CELL_SIZE
@@ -39,11 +47,37 @@ class GridWidget(QtWidgets.QWidget):
         self.setMaximumSize(*size)
         self.resize(*size)
 
+    def get_color_for_position(self, row, column):
+        # generate color based on position and temp
+        if self.bee_clust.map[row, column] == MapConst.HEATER:
+            return QtGui.QColor(255, 0, 0)
+        elif self.bee_clust.map[row, column] == MapConst.COOLER:
+            return QtGui.QColor(0, 0, 255)
+        elif self.bee_clust.map[row, column] == MapConst.WALL:
+            return QtGui.QColor(100, 100, 100)
+        elif self.bee_clust.heatmap[row, column] == self.bee_clust.T_env:
+            return QtGui.QColor(0, 255, 0)
+        # calculate colors between
+        elif self.bee_clust.heatmap[row, column] < self.bee_clust.T_env:
+            add, remove = self.calculate_color(self.bee_clust.heatmap[row, column], self.bee_clust.T_env,
+                                               self.bee_clust.T_cooler, self.COLOR_STEPS / (self.N_COLORS+1))
+
+            return QtGui.QColor(0, add, 255 - remove)
+        elif self.bee_clust.heatmap[row, column] > self.bee_clust.T_env:
+            add, remove = self.calculate_color(self.bee_clust.heatmap[row, column], self.bee_clust.T_heater,
+                                               self.bee_clust.T_env, self.COLOR_STEPS / (self.N_COLORS+1))
+            return QtGui.QColor(add, 255-remove, 0)
+
+    def calculate_color(self, temp, base, minus, t_const):
+        # some compute magic to generate colors intervals
+        split = (int((temp-minus) / ((base - minus) / self.N_COLORS)) + 1) * t_const
+        return min(255, int(split)), max(0, int(split) - 255)
+
     def paintEvent(self, event):
         rect = event.rect()
 
-        # zjistíme, jakou oblast naší matice to představuje
-        # nesmíme se přitom dostat z matice ven
+        # We find out what area of our matrix it is
+        # we can not get out of the nut out
         row_min, col_min = self.pixels_to_logical(rect.left(), rect.top())
         row_min = max(row_min, 0)
         col_min = max(col_min, 0)
@@ -51,23 +85,22 @@ class GridWidget(QtWidgets.QWidget):
         row_max = min(row_max + 1, self.bee_clust.map.shape[0])
         col_max = min(col_max + 1, self.bee_clust.map.shape[1])
 
-        painter = QtGui.QPainter(self)  # budeme kreslit
+        painter = QtGui.QPainter(self)
 
         for row in range(row_min, row_max):
             for column in range(col_min, col_max):
-                # získáme čtvereček, který budeme vybarvovat
+                # get place in map to color
                 x, y = self.logical_to_pixels(row, column)
 
                 rect = QtCore.QRectF(x, y, self.CELL_SIZE, self.CELL_SIZE)
 
-                # podkladová barva pod poloprůhledné obrázky
-                white = QtGui.QColor(255, 255, 255)
-                painter.fillRect(rect, QtGui.QBrush(white))
+                # if heat map render colors else grass
+                if self.heat_map:
+                    painter.fillRect(rect, QtGui.QBrush(self.get_color_for_position(row, column)))
+                else:
+                    self.images['grass'].render(painter, rect)
 
-                # grass add everywhere
-                self.images['grass'].render(painter, rect)
-
-                # Place right images on possitions
+                # Place right images on positions
                 if self.bee_clust.map[row, column] == PICTURES["wall"]:
                     self.images['wall'].render(painter, rect)
                 elif self.bee_clust.map[row, column] <= PICTURES["bee"]:
@@ -102,7 +135,11 @@ class GridWidget(QtWidgets.QWidget):
             else:
                 return
             # rerender the widget
-            self.update(*self.logical_to_pixels(row, column), self.CELL_SIZE, self.CELL_SIZE)
+            if self.heat_map:
+                self.update()
+                print("render")
+            else:
+                self.update(*self.logical_to_pixels(row, column), self.CELL_SIZE, self.CELL_SIZE)
 
     def wheelEvent(self, event):
         modifiers = QtGui.QGuiApplication.keyboardModifiers()
@@ -208,6 +245,7 @@ class App:
         with open(App.get_gui_path('change.ui')) as f:
             uic.loadUi(f, dialog)
 
+        # Set actual values to dialog
         dialog.findChild(QtWidgets.QDoubleSpinBox, 'p_changedir').setValue(self.bee_clust.p_changedir)
         dialog.findChild(QtWidgets.QDoubleSpinBox, 'p_wall').setValue(self.bee_clust.p_wall)
         dialog.findChild(QtWidgets.QDoubleSpinBox, 'p_meet').setValue(self.bee_clust.p_meet)
@@ -225,7 +263,7 @@ class App:
         if result == QtWidgets.QDialog.Rejected:
             return
 
-        # load from spin box
+        # load from spins box
         self.bee_clust.p_changedir = dialog.findChild(QtWidgets.QDoubleSpinBox, 'p_changedir').value()
         self.bee_clust.p_wall = dialog.findChild(QtWidgets.QDoubleSpinBox, 'p_wall').value()
         self.bee_clust.p_meet = dialog.findChild(QtWidgets.QDoubleSpinBox, 'p_meet').value()
@@ -248,13 +286,11 @@ class App:
             self.bee_clust.T_env = T_env
 
         self.bee_clust.min_wait = dialog.findChild(QtWidgets.QSpinBox, 'min_wait').value()
-
-        # self.grid.bee_clust.map = numpy.zeros((rows, cols), dtype=numpy.int8)
-        # self.bee_clust.recalculate_heat()
-        # self.grid.recalculate_sizes(rows, cols)
-        # self.grid.update()
+        self.bee_clust.recalculate_heat()
+        self.grid.update()
 
     def open_dialog(self):
+        # load from file dialog
         file = QtWidgets.QFileDialog.getOpenFileName(self.window)
         try:
             file = open(file[0], 'r')
@@ -274,6 +310,7 @@ class App:
                     QtWidgets.QMessageBox.critical(self.window, "Type error", "Bad type, need save numpy 2D array.")
 
     def save_dialog(self):
+        # save map to file
         file = QtWidgets.QFileDialog.getSaveFileName(self.window)
         try:
             file = open(file[0], 'w')
@@ -283,17 +320,18 @@ class App:
             with file:
                 numpy.savetxt(file, self.bee_clust.map.astype(numpy.int8))
 
-
-
     def tick(self):
+        # button tick
         self.grid.tick()
 
     def about(self):
-        # Show about dialog
+        # show about dialog
         QtWidgets.QMessageBox.about(self.window, "BeeClust", ABOUT)
 
     def heatMap(self):
-        print("heatMap")
+        # show heat map
+        self.grid.heat_map = not self.grid.heat_map
+        self.grid.update()
 
     def new_dialog(self):
         # create new dialog
