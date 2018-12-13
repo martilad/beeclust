@@ -201,8 +201,58 @@ class App:
             self.grid.selected = item.data(self.grid.VALUE_ROLE)
 
     def change_dialog(self):
+        # create new dialog
+        dialog = QtWidgets.QDialog(self.window)
 
-        print("change")
+        # load ui
+        with open(App.get_gui_path('change.ui')) as f:
+            uic.loadUi(f, dialog)
+
+        dialog.findChild(QtWidgets.QDoubleSpinBox, 'p_changedir').setValue(self.bee_clust.p_changedir)
+        dialog.findChild(QtWidgets.QDoubleSpinBox, 'p_wall').setValue(self.bee_clust.p_wall)
+        dialog.findChild(QtWidgets.QDoubleSpinBox, 'p_meet').setValue(self.bee_clust.p_meet)
+        dialog.findChild(QtWidgets.QDoubleSpinBox, 'k_temp').setValue(self.bee_clust.k_temp)
+        dialog.findChild(QtWidgets.QDoubleSpinBox, 'k_stay').setValue(self.bee_clust.k_stay)
+        dialog.findChild(QtWidgets.QDoubleSpinBox, 'T_ideal').setValue(self.bee_clust.T_ideal)
+        dialog.findChild(QtWidgets.QDoubleSpinBox, 'T_heater').setValue(self.bee_clust.T_heater)
+        dialog.findChild(QtWidgets.QDoubleSpinBox, 'T_cooler').setValue(self.bee_clust.T_cooler)
+        dialog.findChild(QtWidgets.QDoubleSpinBox, 'T_env').setValue(self.bee_clust.T_env)
+        dialog.findChild(QtWidgets.QSpinBox, 'min_wait').setValue(self.bee_clust.min_wait)
+        # show modal dialog
+        result = dialog.exec()
+
+        # result from dialog, check what button
+        if result == QtWidgets.QDialog.Rejected:
+            return
+
+        # load from spin box
+        self.bee_clust.p_changedir = dialog.findChild(QtWidgets.QDoubleSpinBox, 'p_changedir').value()
+        self.bee_clust.p_wall = dialog.findChild(QtWidgets.QDoubleSpinBox, 'p_wall').value()
+        self.bee_clust.p_meet = dialog.findChild(QtWidgets.QDoubleSpinBox, 'p_meet').value()
+        self.bee_clust.k_temp = dialog.findChild(QtWidgets.QDoubleSpinBox, 'k_temp').value()
+        self.bee_clust.k_stay = dialog.findChild(QtWidgets.QDoubleSpinBox, 'k_stay').value()
+        self.bee_clust.T_ideal = dialog.findChild(QtWidgets.QDoubleSpinBox, 'T_ideal').value()
+        T_heater = dialog.findChild(QtWidgets.QDoubleSpinBox, 'T_heater').value()
+
+        T_cooler = dialog.findChild(QtWidgets.QDoubleSpinBox, 'T_cooler').value()
+        T_env = dialog.findChild(QtWidgets.QDoubleSpinBox, 'T_env').value()
+
+        if T_heater < T_env or T_cooler > T_env:
+            QtWidgets.QMessageBox.critical(self.window, "Temperature error", "Temperatures should be:<br>"
+                                                                             "<b>T_heater</b> >= <b>T_env</b> >= "
+                                                                             "<b>T_cooler</b><br>"
+                                                                             "Temp values not change.")
+        else:
+            self.bee_clust.T_heater = T_heater
+            self.bee_clust.T_cooler = T_cooler
+            self.bee_clust.T_env = T_env
+
+        self.bee_clust.min_wait = dialog.findChild(QtWidgets.QSpinBox, 'min_wait').value()
+
+        # self.grid.bee_clust.map = numpy.zeros((rows, cols), dtype=numpy.int8)
+        # self.bee_clust.recalculate_heat()
+        # self.grid.recalculate_sizes(rows, cols)
+        # self.grid.update()
 
     def open_dialog(self):
         file = QtWidgets.QFileDialog.getOpenFileName(self.window)
