@@ -29,6 +29,10 @@ class GridWidget(QtWidgets.QWidget):
     def logical_to_pixels(self, row, column):
         return column * self.CELL_SIZE, row * self.CELL_SIZE
 
+    def tick(self):
+        self.bee_clust.tick()
+        self.update()
+
     def recalculate_sizes(self, rows, cols):
         size = self.logical_to_pixels(rows, cols)
         self.setMinimumSize(*size)
@@ -66,19 +70,19 @@ class GridWidget(QtWidgets.QWidget):
                 # Place right images on possitions
                 if self.bee_clust.map[row, column] == PICTURES["wall"]:
                     self.images['wall'].render(painter, rect)
-                if self.bee_clust.map[row, column] <= PICTURES["bee"]:
+                elif self.bee_clust.map[row, column] <= PICTURES["bee"]:
                     self.images['bee'].render(painter, rect)
-                if self.bee_clust.map[row, column] == PICTURES["up"]:
+                elif self.bee_clust.map[row, column] == PICTURES["up"]:
                     self.images['up'].render(painter, rect)
-                if self.bee_clust.map[row, column] == PICTURES["down"]:
+                elif self.bee_clust.map[row, column] == PICTURES["down"]:
                     self.images['down'].render(painter, rect)
-                if self.bee_clust.map[row, column] == PICTURES["right"]:
+                elif self.bee_clust.map[row, column] == PICTURES["right"]:
                     self.images['right'].render(painter, rect)
-                if self.bee_clust.map[row, column] == PICTURES["left"]:
+                elif self.bee_clust.map[row, column] == PICTURES["left"]:
                     self.images['left'].render(painter, rect)
-                if self.bee_clust.map[row, column] == PICTURES["heater"]:
+                elif self.bee_clust.map[row, column] == PICTURES["heater"]:
                     self.images['heater'].render(painter, rect)
-                if self.bee_clust.map[row, column] == PICTURES["cooler"]:
+                elif self.bee_clust.map[row, column] == PICTURES["cooler"]:
                     self.images['cooler'].render(painter, rect)
 
     def mousePressEvent(self, event):
@@ -124,8 +128,7 @@ class myWindow(QtWidgets.QMainWindow):
 
     def keyPressEvent(self, e):
         if e.key() == QtCore.Qt.Key_Space:
-            # TODO: need do tik a render map
-            print("Need do tick")
+            self.grid.tick()
 
 
 class App:
@@ -198,17 +201,42 @@ class App:
             self.grid.selected = item.data(self.grid.VALUE_ROLE)
 
     def change_dialog(self):
-        QtWidgets.QMessageBox.critical(self.window, "vole", "nevim")
+
         print("change")
 
     def open_dialog(self):
-        print("open")
+        file = QtWidgets.QFileDialog.getOpenFileName(self.window)
+        try:
+            file = open(file[0], 'r')
+        except OSError as e:
+            QtWidgets.QMessageBox.critical(self.window, "Open error", e.strerror)
+        else:
+            with file:
+                try:
+                    array = numpy.loadtxt(file, dtype=numpy.int8)
+                    if array.max() > 7:
+                        raise TypeError()
+                    self.bee_clust.map = array
+                    self.bee_clust.recalculate_heat()
+                    self.grid.update()
+                except TypeError as e:
+                    print(e)
+                    QtWidgets.QMessageBox.critical(self.window, "Type error", "Bad type, need save numpy 2D array.")
 
     def save_dialog(self):
-        print("close")
+        file = QtWidgets.QFileDialog.getSaveFileName(self.window)
+        try:
+            file = open(file[0], 'w')
+        except OSError as e:
+            QtWidgets.QMessageBox.critical(self.window, "Save error", e.strerror)
+        else:
+            with file:
+                numpy.savetxt(file, self.bee_clust.map.astype(numpy.int8))
+
+
 
     def tick(self):
-        print("tick")
+        self.grid.tick()
 
     def about(self):
         # Show about dialog
