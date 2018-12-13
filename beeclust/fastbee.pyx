@@ -196,9 +196,10 @@ cdef int _is_bee(int value):
 
 @cython.boundscheck(False)
 @cython.cdivision(True)
-def fast_recalculate_heat(np.int64_t[:, :] _map, double _T_env, double _T_cooler, double _T_heater, double _k_temp):
+def fast_recalculate_heat(map, double _T_env, double _T_cooler, double _T_heater, double _k_temp):
     """Method for recalculating heatmap, it runs two BFS for creating distances from heaters and coolers.
         Next for each position calculate temp."""
+    cdef np.ndarray[np.int64_t, ndim=2] _map = map
     cdef int a, b, i, j
     a = _map.shape[0]
     b = _map.shape[1]

@@ -1,57 +1,60 @@
 from PyQt5 import QtWidgets, QtCore, QtGui, QtSvg, uic
-from beeclust.beeclustClass import MapConst
+from beeclust.beeclustClass import MapConst, BeeClust
 from beeclust.About import ABOUT
 import numpy
 import os
 import sys
 
-
-CELL_SIZE = 45
-VALUE_ROLE = QtCore.Qt.UserRole
 PICTURES = {'grass': 0, 'wall': 5, 'heater': 6, 'cooler': 7, 'bee': -1, 'up': 1, 'down': 3, 'right': 2, 'left': 4}
-
-
-def pixels_to_logical(x, y):
-    return y // CELL_SIZE, x // CELL_SIZE
-
-
-def logical_to_pixels(row, column):
-    return column * CELL_SIZE, row * CELL_SIZE
 
 
 class GridWidget(QtWidgets.QWidget):
 
-    def __init__(self, array, images):
+    def __init__(self, bee_clust, images):
         super().__init__()
+        self.CELL_SIZE = 40
+        self.MIN_SIZE = 20
+        self.MAX_SIZE = 100
+        self.STEP = 3
+        self.VALUE_ROLE = QtCore.Qt.UserRole
+
         self.images = images
-        # TODO: beeclust map here use
-        self.array = array
-        size = logical_to_pixels(*array.shape)
+        self.bee_clust = bee_clust
+        self.recalculate_sizes(*self.bee_clust.map.shape)
+        self.selected = None
+
+    def pixels_to_logical(self, x, y):
+        return y // self.CELL_SIZE, x // self.CELL_SIZE
+
+    def logical_to_pixels(self, row, column):
+        return column * self.CELL_SIZE, row * self.CELL_SIZE
+
+    def recalculate_sizes(self, rows, cols):
+        size = self.logical_to_pixels(rows, cols)
         self.setMinimumSize(*size)
         self.setMaximumSize(*size)
         self.resize(*size)
-        self.selected = None
 
     def paintEvent(self, event):
         rect = event.rect()
 
         # zjistíme, jakou oblast naší matice to představuje
         # nesmíme se přitom dostat z matice ven
-        row_min, col_min = pixels_to_logical(rect.left(), rect.top())
+        row_min, col_min = self.pixels_to_logical(rect.left(), rect.top())
         row_min = max(row_min, 0)
         col_min = max(col_min, 0)
-        row_max, col_max = pixels_to_logical(rect.right(), rect.bottom())
-        row_max = min(row_max + 1, self.array.shape[0])
-        col_max = min(col_max + 1, self.array.shape[1])
+        row_max, col_max = self.pixels_to_logical(rect.right(), rect.bottom())
+        row_max = min(row_max + 1, self.bee_clust.map.shape[0])
+        col_max = min(col_max + 1, self.bee_clust.map.shape[1])
 
         painter = QtGui.QPainter(self)  # budeme kreslit
 
         for row in range(row_min, row_max):
             for column in range(col_min, col_max):
                 # získáme čtvereček, který budeme vybarvovat
-                x, y = logical_to_pixels(row, column)
+                x, y = self.logical_to_pixels(row, column)
 
-                rect = QtCore.QRectF(x, y, CELL_SIZE, CELL_SIZE)
+                rect = QtCore.QRectF(x, y, self.CELL_SIZE, self.CELL_SIZE)
 
                 # podkladová barva pod poloprůhledné obrázky
                 white = QtGui.QColor(255, 255, 255)
@@ -61,47 +64,55 @@ class GridWidget(QtWidgets.QWidget):
                 self.images['grass'].render(painter, rect)
 
                 # Place right images on possitions
-                if self.array[row, column] == PICTURES["wall"]:
+                if self.bee_clust.map[row, column] == PICTURES["wall"]:
                     self.images['wall'].render(painter, rect)
-                if self.array[row, column] <= PICTURES["bee"]:
+                if self.bee_clust.map[row, column] <= PICTURES["bee"]:
                     self.images['bee'].render(painter, rect)
-                if self.array[row, column] == PICTURES["up"]:
+                if self.bee_clust.map[row, column] == PICTURES["up"]:
                     self.images['up'].render(painter, rect)
-                if self.array[row, column] == PICTURES["down"]:
+                if self.bee_clust.map[row, column] == PICTURES["down"]:
                     self.images['down'].render(painter, rect)
-                if self.array[row, column] == PICTURES["right"]:
+                if self.bee_clust.map[row, column] == PICTURES["right"]:
                     self.images['right'].render(painter, rect)
-                if self.array[row, column] == PICTURES["left"]:
+                if self.bee_clust.map[row, column] == PICTURES["left"]:
                     self.images['left'].render(painter, rect)
-                if self.array[row, column] == PICTURES["heater"]:
+                if self.bee_clust.map[row, column] == PICTURES["heater"]:
                     self.images['heater'].render(painter, rect)
-                if self.array[row, column] == PICTURES["cooler"]:
+                if self.bee_clust.map[row, column] == PICTURES["cooler"]:
                     self.images['cooler'].render(painter, rect)
 
     def mousePressEvent(self, event):
         # Convert to matrix from click
-        row, column = pixels_to_logical(event.x(), event.y())
+        row, column = self.pixels_to_logical(event.x(), event.y())
 
         # Update data in matrix
-        if 0 <= row < self.array.shape[0] and 0 <= column < self.array.shape[1]:
+        if 0 <= row < self.bee_clust.map.shape[0] and 0 <= column < self.bee_clust.map.shape[1]:
             if event.button() == QtCore.Qt.LeftButton:
                 if self.selected is None:
                     return
-                self.array[row, column] = self.selected
+                self.bee_clust.map[row, column] = self.selected
+                self.bee_clust.recalculate_heat()
             elif event.button() == QtCore.Qt.RightButton:
-                self.array[row, column] = PICTURES['grass']
+                self.bee_clust.map[row, column] = PICTURES['grass']
+                self.bee_clust.recalculate_heat()
             else:
                 return
             # rerender the widget
-            self.update(*logical_to_pixels(row, column), CELL_SIZE, CELL_SIZE)
+            self.update(*self.logical_to_pixels(row, column), self.CELL_SIZE, self.CELL_SIZE)
 
     def wheelEvent(self, event):
-        if event.angleDelta().y() < 0:
-            # TODO: zooming
-            print("minus downsize cell size and render")
-        else:
-            print("plus cellsize and render")
-
+        modifiers = QtGui.QGuiApplication.keyboardModifiers()
+        if modifiers == QtCore.Qt.ControlModifier:
+            if event.angleDelta().y() < 0:
+                if not self.CELL_SIZE < self.MIN_SIZE:
+                    self.CELL_SIZE -= self.STEP
+                    self.recalculate_sizes(*self.bee_clust.map.shape)
+                    self.update()
+            else:
+                if not self.CELL_SIZE > self.MAX_SIZE:
+                    self.CELL_SIZE += self.STEP
+                    self.recalculate_sizes(*self.bee_clust.map.shape)
+                    self.update()
 
 
 class myWindow(QtWidgets.QMainWindow):
@@ -121,6 +132,8 @@ class App:
 
     def __init__(self):
         self.app = QtWidgets.QApplication([])
+        self.bee_clust = BeeClust(numpy.zeros((10, 10), dtype=numpy.int8))
+
         self.window = myWindow()
         self.window.setWindowIcon(QtGui.QIcon(App.get_img_path("bee.svg")))
 
@@ -131,23 +144,19 @@ class App:
         for i in PICTURES:
             self.images[i] = App.create_as_qt_svg(i + ".svg")
 
-        # get palette from ui
-        self.palette = self.window.findChild(QtWidgets.QListWidget, 'palette')
-
-        for i in PICTURES:
-            self.add_item_to_palette(i, App.get_img_path(i+".svg"))
-
-        # TODO: beeclust map here init
-        self.array = numpy.zeros((15, 20), dtype=numpy.int8)
-        self.array[:, 5] = 1
-
         # get range from ui from qt
         self.scroll_area = self.window.findChild(QtWidgets.QScrollArea, 'scrollArea')
 
         # create and add grid
-        self.grid = GridWidget(self.array, self.images)
+        self.grid = GridWidget(self.bee_clust, self.images)
         self.window.grid = self.grid
         self.scroll_area.setWidget(self.grid)
+
+        # get palette from ui
+        self.palette = self.window.findChild(QtWidgets.QListWidget, 'palette')
+
+        for i in PICTURES:
+            self.add_item_to_palette(i, App.get_img_path(i + ".svg"))
 
         self.palette.itemSelectionChanged.connect(lambda: self.item_activated())
 
@@ -181,12 +190,12 @@ class App:
         icon = QtGui.QIcon(img_path)
         item.setIcon(icon)
         self.palette.addItem(item)
-        item.setData(VALUE_ROLE, PICTURES[name])
+        item.setData(self.grid.VALUE_ROLE, PICTURES[name])
 
     def item_activated(self):
         # call when item click
         for item in self.palette.selectedItems():
-            self.grid.selected = item.data(VALUE_ROLE)
+            self.grid.selected = item.data(self.grid.VALUE_ROLE)
 
     def change_dialog(self):
         QtWidgets.QMessageBox.critical(self.window, "vole", "nevim")
@@ -202,6 +211,7 @@ class App:
         print("tick")
 
     def about(self):
+        # Show about dialog
         QtWidgets.QMessageBox.about(self.window, "BeeClust", ABOUT)
 
     def heatMap(self):
@@ -226,19 +236,9 @@ class App:
         cols = dialog.findChild(QtWidgets.QSpinBox, 'widthBox').value()
         rows = dialog.findChild(QtWidgets.QSpinBox, 'heightBox').value()
 
-        # TODO: beeclust new map
-        self.grid.array = numpy.zeros((rows, cols), dtype=numpy.int8)
-
-        # Mapa může být jinak velká, tak musíme změnit velikost Gridu;
-        # (tento kód používáme i jinde, měli bychom si na to udělat funkci!)
-        # TODO: beeclust new map
-        # TODO: recalculate heat
-        size = logical_to_pixels(rows, cols)
-        self.grid.setMinimumSize(*size)
-        self.grid.setMaximumSize(*size)
-        self.grid.resize(*size)
-
-        # update grid
+        self.grid.bee_clust.map = numpy.zeros((rows, cols), dtype=numpy.int8)
+        self.bee_clust.recalculate_heat()
+        self.grid.recalculate_sizes(rows, cols)
         self.grid.update()
 
     def run(self):
