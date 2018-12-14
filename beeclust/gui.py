@@ -137,7 +137,6 @@ class GridWidget(QtWidgets.QWidget):
             # rerender the widget
             if self.heat_map:
                 self.update()
-                print("render")
             else:
                 self.update(*self.logical_to_pixels(row, column), self.CELL_SIZE, self.CELL_SIZE)
 
@@ -306,9 +305,9 @@ class App:
                     self.bee_clust.recalculate_heat()
                     self.grid.recalculate_sizes(*array.shape)
                     self.grid.update()
-                except TypeError as e:
-                    print(e)
-                    QtWidgets.QMessageBox.critical(self.window, "Type error", "Bad type, need save numpy 2D array.")
+                except (TypeError, ValueError) as e:
+                    QtWidgets.QMessageBox.critical(self.window, "File format error",
+                                                   "Bad format, need numpy 2D array fill with numbers.")
 
     def save_dialog(self):
         # save map to file
