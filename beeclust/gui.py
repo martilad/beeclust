@@ -304,6 +304,7 @@ class App:
                         raise TypeError()
                     self.bee_clust.map = array
                     self.bee_clust.recalculate_heat()
+                    self.grid.recalculate_sizes(*array.shape)
                     self.grid.update()
                 except TypeError as e:
                     print(e)
