@@ -9,7 +9,7 @@ docutils==0.14
 gprof2dot==2017.9.19
 idna==2.7
 imagesize==1.1.0
-Jinja2==2.10
+Jinja2>=2.10.1
 MarkupSafe==1.1.0
 more-itertools==4.3.0
 numpy==1.15.4
@@ -29,4 +29,4 @@ six==1.11.0
 snowballstemmer==1.2.1
 Sphinx==1.8.2
 sphinxcontrib-websupport==1.1.0
-urllib3==1.24.1
+urllib3>=1.24.2
